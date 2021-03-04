@@ -85,16 +85,16 @@ class BiDAFplus(nn.Module):
         q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_len, qc_len)
 
         # hs = 2x
-        print(f'context_encoder {c_enc.shape}')
-        print(f'query_encoder {q_enc.shape}')
-        print(f'Expecting batch, cw_len, 800')
+        #print(f'context_encoder {c_enc.shape}')
+        #print(f'query_encoder {q_enc.shape}')
+        #print(f'Expecting batch, cw_len, 800')
         att = self.att(c_enc, q_enc,
                        cw_mask, qw_mask)    # (batch_size, c_len, 8 * hidden_size)
         
-        print(f'att shape {att.shape}')
+        #print(f'att shape {att.shape}')
         mod = self.mod(att, cw_len)        # (batch_size, c_len, 2 * hidden_size)
         
-        print(f'mod shape {mod.shape}')
+        #print(f'mod shape {mod.shape}')
         out = self.out(att, mod, cw_mask)  # 2 tensors, each (batch_size, c_len)
 
         return out
