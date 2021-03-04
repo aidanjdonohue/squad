@@ -35,7 +35,31 @@ class Embedding(nn.Module):
         emb = F.dropout(emb, self.drop_prob, self.training)
         emb = self.proj(emb)  # (batch_size, seq_len, hidden_size)
         emb = self.hwy(emb)   # (batch_size, seq_len, hidden_size)
+        # hidden size = cout_word_ebedding size
 
+        return emb
+
+# https://github.com/jojonki/BiDAF/blob/master/layers/word_embedding.py
+class WordEmbedding(nn.Module):
+    '''
+    In : (N, sentence_len)
+    Out: (N, sentence_len, embd_size)
+    '''
+    def __init__(self, word_vectors, hidden_size, drop_prob):
+        super(WordEmbedding, self).__init__()
+        self.embedding = nn.Embedding.from_pretrained(word_vectors)
+        self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
+        self.drop_prob = drop_prob
+        '''
+        self.embedding = nn.Embedding(args.vocab_size_w, args.w_embd_size)
+        if args.pre_embd_w is not None:
+            self.embedding.weight = nn.Parameter(args.pre_embd_w, requires_grad=is_train_embd)
+        '''
+    def forward(self, x):
+        emb = self.embedding(x)
+        emb = F.dropout(emb, self.drop_prob, self.training)
+        emb = self.proj(emb)
+        
         return emb
 
 # https://github.com/jojonki/BiDAF/blob/master/layers/char_embedding.py
@@ -44,13 +68,16 @@ class CharEmbedding(nn.Module):
      In : (N, sentence_len, word_len, vocab_size_c)
      Out: (N, sentence_len, c_embd_size)
      '''
-    def __init__(self, args):
+    def __init__(self, char_vectors, out_channels=100, filters=[[1,5]], drop_prob=0.2):
         super(CharEmbedding, self).__init__()
-        self.embd_size = args.c_embd_size
-        self.embedding = nn.Embedding(args.vocab_size_c, args.c_embd_size)
+        
+        vocab_size_c = char_vectors.size(0)
+        self.drop_prob = drop_prob
+        self.embd_size = char_vectors.size(1) # c -> idx
+        self.embedding = nn.Embedding(vocab_size_c, self.embd_size)
         # nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, ...
-        self.conv = nn.ModuleList([nn.Conv2d(1, args.out_chs, (f[0], f[1])) for f in args.filters])
-        self.dropout = nn.Dropout(.2)
+        self.conv = nn.ModuleList([nn.Conv2d(1, out_channels, (f[0], f[1])) for f in filters])
+        self.dropout = nn.Dropout(self.drop_prob)
 
     def forward(self, x):
         # x: (N, seq_len, word_len)
@@ -78,9 +105,9 @@ class CharEmbedding(nn.Module):
         # (N, seq_len, Cout==word_embd_size)
         x = torch.cat(x, 1)
         x = self.dropout(x)
-
+        # N, Cout, len(filter_heights)
         return x
-    
+
 
 
 class HighwayEncoder(nn.Module):
@@ -129,6 +156,7 @@ class RNNEncoder(nn.Module):
                  hidden_size,
                  num_layers,
                  drop_prob=0.):
+
         super(RNNEncoder, self).__init__()
         self.drop_prob = drop_prob
         self.rnn = nn.LSTM(input_size, hidden_size, num_layers,
@@ -176,6 +204,7 @@ class BiDAFAttention(nn.Module):
     """
     def __init__(self, hidden_size, drop_prob=0.1):
         super(BiDAFAttention, self).__init__()
+        #print(f'bidaf attention hidden_size: {hidden_size}')
         self.drop_prob = drop_prob
         self.c_weight = nn.Parameter(torch.zeros(hidden_size, 1))
         self.q_weight = nn.Parameter(torch.zeros(hidden_size, 1))
