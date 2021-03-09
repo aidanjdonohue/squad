@@ -4,9 +4,7 @@ Author:
     Chris Chute (chute@stanford.edu)
 """
 
-import layers.encoder as encoder
-import layers.embedding as embedding
-import layers.bidaf as bidaf
+import layers_old
 import torch
 import torch.nn as nn
 
@@ -21,31 +19,31 @@ class BiDAFplus(nn.Module):
     def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
         super(BiDAFplus, self).__init__()
 
-        self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
+        self.word_embd = layers.WordEmbedding(word_vectors=word_vectors,
                                              hidden_size=hidden_size,
                                              drop_prob=drop_prob)
 
 
-        self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors)
+        self.char_embd = layers.CharEmbedding(char_vectors=char_vectors)
 
         # input size = CharEmbedding Size
 
-        self.hwy = encoder.HighwayEncoder(2, 2*hidden_size)
+        self.hwy = layers.HighwayEncoder(2, 2*hidden_size)
 
-        self.enc = encoder.RNNEncoder(input_size=2*hidden_size,
+        self.enc = layers.RNNEncoder(input_size=2*hidden_size,
                                      hidden_size=hidden_size,
                                      num_layers=1,
                                      drop_prob=drop_prob)
 
-        self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
+        self.att = layers.BiDAFAttention(hidden_size=2*hidden_size,
                                          drop_prob=drop_prob)
 
-        self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
+        self.mod = layers.RNNEncoder(input_size=8 * hidden_size,
                                      hidden_size=hidden_size,
                                      num_layers=2,
                                      drop_prob=drop_prob)
 
-        self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
+        self.out = layers.BiDAFOutput(hidden_size=hidden_size,
                                       drop_prob=drop_prob)
 
     def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
@@ -124,25 +122,25 @@ class BiDAF(nn.Module):
     """
     def __init__(self, word_vectors, hidden_size, drop_prob=0.):
         super(BiDAF, self).__init__()
-        self.emb = embedding.Embedding(word_vectors=word_vectors,
+        self.emb = layers.Embedding(word_vectors=word_vectors,
                                     hidden_size=hidden_size,
                                     drop_prob=drop_prob)
 
 
-        self.enc = encoder.RNNEncoder(input_size=hidden_size,
+        self.enc = layers.RNNEncoder(input_size=hidden_size,
                                      hidden_size=hidden_size,
                                      num_layers=1,
                                      drop_prob=drop_prob)
 
-        self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
+        self.att = layers.BiDAFAttention(hidden_size=2*hidden_size,
                                          drop_prob=drop_prob)
 
-        self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
+        self.mod = layers.RNNEncoder(input_size=8 * hidden_size,
                                      hidden_size=hidden_size,
                                      num_layers=2,
                                      drop_prob=drop_prob)
 
-        self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
+        self.out = layers.BiDAFOutput(hidden_size=hidden_size,
                                       drop_prob=drop_prob)
 
 
