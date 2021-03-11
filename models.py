@@ -12,7 +12,7 @@ import torch.nn as nn
 
 
 params = {
-    'phrase_encoder': 'gru', #'lstm'
+    'phrase_encoder': 'lstm', #'gru'
     'out_channels': 100,
     'filters': [[1,5]],
     'drop_prob': 0.2,
