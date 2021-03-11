@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from self_attention import SelfAttMultiHeadLayer
+from layers.self_attention import SelfAttMultiHeadLayer
 
 class HighwayEncoder(nn.Module):
     """Encode an input sequence using a highway network.
@@ -103,10 +103,11 @@ class SelfAttEncoder(nn.Module):
 
         super(SelfAttEncoder, self).__init__()
         self.drop_prob = drop_prob
-        self.rnn = nn.LSTM(input_size, hidden_size, num_layers,
-                           batch_first=True,
-                           bidirectional=True,
-                           dropout=drop_prob if num_layers > 1 else 0.)
+        #self.rnn = nn.LSTM(input_size, hidden_size, num_layers,
+        #                   batch_first=True,
+        #                   bidirectional=True,
+        #                   dropout=drop_prob if num_layers > 1 else 0.)
+
         self.sublayer_one = SelfAttMultiHeadLayer(input_size, 0.1, 0.1, 8)
         self.sublayer_two = SelfAttFeedForwardLayer()
 

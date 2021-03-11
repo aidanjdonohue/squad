@@ -11,44 +11,55 @@ import torch
 import torch.nn as nn
 
 
-class SelfAttModel(nn.module):
-    super(BiDAFself, self).__init__()
+class SelfAttModel(nn.Module):
+    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.1):
+        super(SelfAttModel, self).__init__()
 
-    self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
-                                             hidden_size=hidden_size,
-                                             drop_prob=drop_prob)
-    self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors)
-    self.hwy = encoder.HighwayEncoder(2, 2*hidden_size)
+        self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
+                                                hidden_size=hidden_size,
+                                                drop_prob=drop_prob)
+        self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors)
+        self.pos_embd = embedding.PositionEmbedding(word_vectors=word_vectors,
+                                                hidden_size=hidden_size, 
+                                                drop_prob=drop_prob)
+        #self.hwy = encoder.HighwayEncoder(2, 2*hidden_size)
 
-    self.enc = encoder.SelfAttEncoder(input_size=2*hidden_size,
-                                     hidden_size=hidden_size,
-                                     num_layers=1,
-                                     drop_prob=drop_prob)
-    
-    self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
-                                         drop_prob=drop_prob)
+        #self.enc = encoder.SelfAttEncoder(input_size=2*hidden_size,
+        #                             hidden_size=hidden_size,
+        #                             num_layers=1,
+        #                             drop_prob=drop_prob)
 
-    self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
-                                     hidden_size=hidden_size,
-                                     num_layers=2,
-                                     drop_prob=drop_prob)
+        #self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
+        #                                 drop_prob=drop_prob)
 
-    self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
-                                      drop_prob=drop_prob)
+        #self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
+        #                             hidden_size=hidden_size,
+        #                             num_layers=2,
+        #                             drop_prob=drop_prob)
 
-        def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
+        #self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
+        #                              drop_prob=drop_prob)
+
+    def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
         char_embd = self.char_embd(x_c)
 
         word_embd = self.word_embd(x_w)
 
+        pos_embd = self.pos_embd(x_c)
+
+        #print("Char emb shape:", char_embd.shape, 
+        print("word emb shape:", word_embd.shape)
+        #print("Pos embd shape:", pos_embd.shape)
+
         #print(f'char_embd shape{char_embd.shape}')
         #print(f'word_embd shape{word_embd.shape}')
 
-        embd = torch.cat((char_embd, word_embd), 2)
+        #embd = torch.cat((char_embd, word_embd), 2)
+        embd = torch.cat((char_embd, word_embd, pos_embd), 2)
 
         #print(f'cat_embd shape {embd.shape}')
 
-        embd = self.hwy(embd)
+        #embd = self.hwy(embd)
         #print(f'hwy_embd shape {embd.shape}')
         lens = w_len #+ c_len
         #print(f'lens: {w_len} c_len: {c_len}')

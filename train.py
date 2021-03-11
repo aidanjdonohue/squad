@@ -17,13 +17,13 @@ import util
 from args import get_train_args
 from collections import OrderedDict
 from json import dumps
-from models import BiDAF, BiDAFplus
+from models import BiDAF, BiDAFplus, SelfAttModel
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
-
+useSelfAttention = True
 useCharEmbeddings = True
 
 def main(args):
@@ -51,10 +51,16 @@ def main(args):
     # Get model
     log.info('Building model...')
     if useCharEmbeddings:
-        model = BiDAFplus(word_vectors=word_vectors,
-                          char_vectors=char_vectors,
-                          hidden_size=args.hidden_size,
-                          drop_prob=args.drop_prob)
+        if useSelfAttention:
+            model = SelfAttModel(word_vectors=word_vectors,
+                                 char_vectors=char_vectors,
+                                 hidden_size=args.hidden_size,
+                                 drop_prob=args.drop_prob)
+        else:
+            model = BiDAFplus(word_vectors=word_vectors,
+                              char_vectors=char_vectors,
+                              hidden_size=args.hidden_size,
+                              drop_prob=args.drop_prob)
     else:
         model = BiDAF(word_vectors=word_vectors, #char_vectors=char_vectors,
                       hidden_size=args.hidden_size,

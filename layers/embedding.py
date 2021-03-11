@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from encoder import HighwayEncoder
+from layers.encoder import HighwayEncoder
 
 class Embedding(nn.Module):
     """Embedding layer used by BiDAF, without the character-level component.
@@ -99,4 +99,46 @@ class CharEmbedding(nn.Module):
         x = torch.cat(x, 1)
         x = self.dropout(x)
         # N, Cout, len(filter_heights)
+        return x
+
+class PositionEmbedding(nn.Module):
+    '''
+    Section 3.5
+    PE(pos,2i) = sin(pos/10000^(2i/hidden_size))
+    PE(pos,2i+1) = cos(pos/10000^(2i/hidden_size))
+    pos = position and i = dimension
+     In : (hidden_size, drop_probability)
+     Out: (N, sentence_len, c_embd_size)
+     '''
+    def __init__(self, word_vectors, hidden_size, drop_prob=0.2):
+        super(PositionEmbedding, self).__init__()
+        
+        #self.embd_size = char_vectors.size(1) # c -> idx
+        #self.embedding = nn.Embedding(vocab_size_c, self.embd_size)
+        # nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, ...
+        #self.conv = nn.ModuleList([nn.Conv2d(1, out_channels, (f[0], f[1])) for f in filters])
+        
+        self.word_vectors = word_vectors
+        self.hidden_size = hidden_size
+        self.drop_prob = drop_prob
+        self.dropout = nn.Dropout(self.drop_prob)
+    
+    def get_wavelength(self, dim):
+        return 1/pow(10000, 2*dim/self.hidden_size)
+
+    def forward(self, x):
+        # x: (N, seq_len, word_len)
+        #input_shape = x.size()
+
+        # TODO SIN & COSINE Embeddings
+        # for each dimension in text
+            # for each position in dimension
+                # if position % 2 = 0:
+                    # sin(pos * get_wavelength(dimension))
+                # else:
+                    # cos(pos * get_wavelength(dimension))
+        
+        #What is N in this case?
+        #Can I loop trhough words at this point or wouold I need to modify setup.py
+        
         return x
