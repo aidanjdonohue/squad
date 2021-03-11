@@ -33,6 +33,8 @@ class BiDAFplus(nn.Module):
     def __init__(self, word_vectors, char_vectors, hidden_size, params=params):
         super(BiDAFplus, self).__init__()
 
+        self.model_name = 'BiDAFplus'
+
         self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
                                                  hidden_size=hidden_size,
                                                  drop_prob=params['drop_prob'])
@@ -159,6 +161,10 @@ class BiDAF(nn.Module):
     """
     def __init__(self, word_vectors, hidden_size, drop_prob=0.):
         super(BiDAF, self).__init__()
+
+        self.model_name = 'BiDAF'
+
+
         self.emb = embedding.Embedding(word_vectors=word_vectors,
                                     hidden_size=hidden_size,
                                     drop_prob=drop_prob)

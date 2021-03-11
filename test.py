@@ -28,7 +28,7 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
-useCharEmbeddings = True
+#useCharEmbeddings = True
 
 def main(args):
     # Set up logging
@@ -83,7 +83,7 @@ def main(args):
             cw_idxs = cw_idxs.to(device)
             qw_idxs = qw_idxs.to(device)
             batch_size = cw_idxs.size(0)
-            if if args.model == 'BiDAFplus':
+            if model.model_name == 'BiDAFplus':
                 cc_idxs = cc_idxs.to(device)
                 qc_idxs = qc_idxs.to(device)
 

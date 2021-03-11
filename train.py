@@ -23,7 +23,7 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
-
+model_type = ''
 
 def main(args):
     # Set up logging and devices
@@ -33,7 +33,7 @@ def main(args):
     device, args.gpu_ids = util.get_available_devices()
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
     args.batch_size *= max(1, len(args.gpu_ids))
-
+    
 
     # Set random seed
     log.info(f'Using random seed {args.seed}...')
@@ -115,7 +115,7 @@ def main(args):
                 batch_size = cw_idxs.size(0)
                 optimizer.zero_grad()
 
-                if args.model == 'BiDAFplus':
+                if model.model_name == 'BiDAFplus':
                     cc_idxs = cc_idxs.to(device)
                     qc_idxs = qc_idxs.to(device)
 
@@ -124,6 +124,8 @@ def main(args):
                 # Forward
                 else:
                     log_p1, log_p2 = model(cw_idxs, qw_idxs)
+
+
                 y1, y2 = y1.to(device), y2.to(device)
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 loss_val = loss.item()
@@ -191,7 +193,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
             batch_size = cw_idxs.size(0)
 
             # Forward
-            if args.model == 'BiDAFplus':
+            if model.model_name == 'BiDAFplus':
 
                 qc_idxs = qc_idxs.to(device)
                 cc_idxs = cc_idxs.to(device)
