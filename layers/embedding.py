@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from encoder import HighwayEncoder
+from .encoder import HighwayEncoder
 
 class Embedding(nn.Module):
     """Embedding layer used by BiDAF, without the character-level component.

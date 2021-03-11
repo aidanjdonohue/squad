@@ -135,6 +135,18 @@ def get_train_args():
                         default=0.999,
                         help='Decay rate for exponential moving average of parameters.')
 
+    parser.add_argument('--model',
+                        type=str,
+                        default='BiDAF',
+                        help='Select model name. [BiDAF, BiDAFplus].')
+
+    '''
+    parser.add_argument('--phrase_encoder',
+                        type=str,
+                        default='rnn',
+                        help='Select a phrase_encoder. [rnn, gru]')
+    '''
+
     args = parser.parse_args()
 
     if args.metric_name == 'NLL':

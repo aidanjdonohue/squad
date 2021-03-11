@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from util import masked_softmax
+from .util import masked_softmax
 
-from encoder import RNNEncoder
+from .encoder import RNNEncoder
 
 class BiDAFAttention(nn.Module):
     """Bidirectional attention originally used by BiDAF.

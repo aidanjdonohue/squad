@@ -11,6 +11,20 @@ import torch
 import torch.nn as nn
 
 
+params = {
+    'phrase_encoder': 'lstm', #'gru'
+    'out_channels': 100,
+    'filters': [[1,5]],
+    'drop_prob': 0.2,
+    'hwy_layers': 2,
+    'model_layers': 2,
+    'encoder_layers': 1,
+
+
+}
+
+
+
 class BiDAFplus(nn.Module):
     # word_vectors -> word_embeddings
     # char_vectors -> char_embeddings
@@ -18,35 +32,49 @@ class BiDAFplus(nn.Module):
     # word_embeddings + char_embeddings -> encoder / (phrase embeddings)
 
    
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.):
+    def __init__(self, word_vectors, char_vectors, hidden_size, params=params):
         super(BiDAFplus, self).__init__()
 
         self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
-                                             hidden_size=hidden_size,
-                                             drop_prob=drop_prob)
+                                                 hidden_size=hidden_size,
+                                                 drop_prob=params['drop_prob'])
 
 
         self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors)
 
         # input size = CharEmbedding Size
 
-        self.hwy = encoder.HighwayEncoder(2, 2*hidden_size)
+        self.d = 2 * hidden_size # char_embedding_size + word_embedding_size
 
-        self.enc = encoder.RNNEncoder(input_size=2*hidden_size,
-                                     hidden_size=hidden_size,
-                                     num_layers=1,
-                                     drop_prob=drop_prob)
+        self.hwy = encoder.HighwayEncoder(params['hwy_layers'], self.d)
 
-        self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
-                                         drop_prob=drop_prob)
+        
+        # select the phrase encoder
+        self.phrase_encoder = params['phrase_encoder']
+
+        if self.phrase_encoder == 'lstm':
+            encoder_fn = encoder.RNNEncoder
+        elif self.phrase_encoder == 'gru':
+            encoder_fn = encoder.GRUEncoder
+
+        self.enc = encoder_fn(input_size=self.d,
+                              hidden_size=self.d,
+                              num_layers=params['encoder_layers'],
+                              drop_prob=params['drop_prob']) 
+        
+
+
+
+        self.att = bidaf.BiDAFAttention(hidden_size=self.d,
+                                        drop_prob=params['drop_prob'])
 
         self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
                                      hidden_size=hidden_size,
-                                     num_layers=2,
-                                     drop_prob=drop_prob)
+                                     num_layers=params['model_layers'],
+                                     drop_prob=params['drop_prob'])
 
         self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
-                                      drop_prob=drop_prob)
+                                      drop_prob=params['drop_prob'])
 
     def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
         char_embd = self.char_embd(x_c)
@@ -66,8 +94,11 @@ class BiDAFplus(nn.Module):
         #print(f'lens: {w_len} c_len: {c_len}')
 
 
+        if self.phrase_encoder == 'rnn':
+            encoding = self.enc(embd, lens)
 
-        encoding = self.enc(embd, lens)
+        elif self.phrase_encoder == 'gru':
+            encoding = self.enc(embd)
         
         return encoding
 
@@ -90,6 +121,7 @@ class BiDAFplus(nn.Module):
         #print(f'context_encoder {c_enc.shape}')
         #print(f'query_encoder {q_enc.shape}')
         #print(f'Expecting batch, cw_len, 800')
+        # need to figure this out
         att = self.att(c_enc, q_enc,
                        cw_mask, qw_mask)    # (batch_size, c_len, 8 * hidden_size)
         

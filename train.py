@@ -24,7 +24,6 @@ from ujson import load as json_load
 from util import collate_fn, SQuAD
 
 
-useCharEmbeddings = True
 
 def main(args):
     # Set up logging and devices
@@ -35,12 +34,16 @@ def main(args):
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
     args.batch_size *= max(1, len(args.gpu_ids))
 
+
     # Set random seed
     log.info(f'Using random seed {args.seed}...')
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
+
+    # check this
+    #useCharEmbeddings = args.model == 'BiDAFplus'
 
     # Get embeddings
     log.info('Loading embeddings...')
@@ -50,7 +53,7 @@ def main(args):
     # load_char_vectors
     # Get model
     log.info('Building model...')
-    if useCharEmbeddings:
+    if args.model == 'BiDAFplus':
         model = BiDAFplus(word_vectors=word_vectors,
                           char_vectors=char_vectors,
                           hidden_size=args.hidden_size,
@@ -112,7 +115,7 @@ def main(args):
                 batch_size = cw_idxs.size(0)
                 optimizer.zero_grad()
 
-                if useCharEmbeddings:
+                if args.model == 'BiDAFplus':
                     cc_idxs = cc_idxs.to(device)
                     qc_idxs = qc_idxs.to(device)
 
@@ -188,7 +191,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
             batch_size = cw_idxs.size(0)
 
             # Forward
-            if useCharEmbeddings:
+            if args.model == 'BiDAFplus':
 
                 qc_idxs = qc_idxs.to(device)
                 cc_idxs = cc_idxs.to(device)
