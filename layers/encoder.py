@@ -34,6 +34,62 @@ class HighwayEncoder(nn.Module):
         return x
 
 
+class GRUEncoder(nn.Module):
+    """
+    Args:
+        input_size (int): Size of a single timestep in the input.
+        hidden_size (int): Size of the RNN hidden state.
+        num_layers (int): Number of layers of RNN cells to use.
+        drop_prob (float): Probability of zero-ing out activations.
+    """
+    def __init__(self,
+                 input_size,
+                 hidden_size,
+                 num_layers,
+                 drop_prob=0.2):
+
+
+        super(GRUEncoder, self).__init__()
+        self.drop_prob = drop_prob
+        self.rnn = nn.GRU(input_size=input_size, 
+                          hidden_size=hidden_size, 
+                          num_layers=num_layers,
+                          batch_first=True,
+                          bidirectional=True,
+                          dropout=drop_prob if num_layers > 1 else 0.)
+
+
+        # self.enc(input, h_0) where input -> (batch, seq, feature) 
+        #                              h_0 -> (batch, num_layers * num_directions, hidden_size)
+        # and outputs are           output -> (batch, seq, num_directions * hidden_size)
+        #                              h_n -> (batch, num_layers * num_directions, hidden_size)
+        
+
+
+    def forward(self, x, lengths):
+
+        orig_len = x.size(1)
+
+        # Sort by length and pack sequence for RNN
+        lengths, sort_idx = lengths.sort(0, descending=True)
+        x = x[sort_idx]     # (batch_size, seq_len, input_size)
+        x = pack_padded_sequence(x, lengths, batch_first=True)
+
+        # check shapes here
+        # Apply RNN
+        x, _ = self.rnn(x)  # (batch_size, seq_len, 2 * hidden_size)
+
+        # Unpack and reverse sort
+        x, _ = pad_packed_sequence(x, batch_first=True, total_length=orig_len)
+        _, unsort_idx = sort_idx.sort(0)
+        x = x[unsort_idx]   # (batch_size, seq_len, 2 * hidden_size)
+
+        # Apply dropout (RNN applies dropout after all but the last layer)
+        x = F.dropout(x, self.drop_prob, self.training)
+
+        return x 
+
+
 class RNNEncoder(nn.Module):
     """General-purpose layer for encoding a sequence using a bidirectional RNN.
 
@@ -50,7 +106,7 @@ class RNNEncoder(nn.Module):
                  input_size,
                  hidden_size,
                  num_layers,
-                 drop_prob=0.):
+                 drop_prob=0.2):
 
         super(RNNEncoder, self).__init__()
         self.drop_prob = drop_prob
@@ -61,12 +117,15 @@ class RNNEncoder(nn.Module):
 
     def forward(self, x, lengths):
         # Save original padded length for use by pad_packed_sequence
+        #print(f'X shape: {x.shape}')
         orig_len = x.size(1)
 
         # Sort by length and pack sequence for RNN
         lengths, sort_idx = lengths.sort(0, descending=True)
         x = x[sort_idx]     # (batch_size, seq_len, input_size)
         x = pack_padded_sequence(x, lengths, batch_first=True)
+
+        #print(f'Packed X shape: {x.data.shape}')
 
         # Apply RNN
         x, _ = self.rnn(x)  # (batch_size, seq_len, 2 * hidden_size)

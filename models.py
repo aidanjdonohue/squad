@@ -12,15 +12,13 @@ import torch.nn as nn
 
 
 params = {
-    'phrase_encoder': 'lstm', #'gru'
+    'phrase_encoder': 'gru', #'lstm'
     'out_channels': 100,
     'filters': [[1,5]],
     'drop_prob': 0.2,
     'hwy_layers': 2,
     'model_layers': 2,
     'encoder_layers': 1,
-
-
 }
 
 
@@ -98,7 +96,7 @@ class BiDAFplus(nn.Module):
             encoding = self.enc(embd, lens)
 
         elif self.phrase_encoder == 'gru':
-            encoding = self.enc(embd)
+            encoding = self.enc(embd, lens)
         
         return encoding
 
@@ -110,16 +108,21 @@ class BiDAFplus(nn.Module):
         qw_mask = torch.zeros_like(qw_idxs) != qw_idxs
         cw_len, qw_len = cw_mask.sum(-1), qw_mask.sum(-1)
 
+        #print(f'CW mask shape {cw_mask.shape}')
+        #print(f'QW mask shape {qw_mask.shape}')
         cc_mask = torch.zeros_like(cc_idxs) != cc_idxs
         qc_mask = torch.zeros_like(qc_idxs) != qc_idxs
         cc_len, qc_len = cc_mask.sum(-1), qc_mask.sum(-1)
+
+        #print(f'CC mask shape {cc_mask.shape}')
+        #print(f'QC mask shape {qc_mask.shape}')
      
         c_enc = self.build_contextual_encoding(cw_idxs, cc_idxs, cw_len, cc_len)
         q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_len, qc_len)
 
         # hs = 2x
-        #print(f'context_encoder {c_enc.shape}')
-        #print(f'query_encoder {q_enc.shape}')
+        print(f'context_encoder {c_enc.shape}')
+        print(f'query_encoder {q_enc.shape}')
         #print(f'Expecting batch, cw_len, 800')
         # need to figure this out
         att = self.att(c_enc, q_enc,
