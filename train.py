@@ -6,6 +6,7 @@ Author:
 
 import numpy as np
 import random
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -41,7 +42,7 @@ def main(args):
     if time_log > 0:
         log.info(f'Start training at: {startime.strftime("%H:%M:%S")}')
 
-        
+
     tbx = SummaryWriter(args.save_dir)
     device, args.gpu_ids = util.get_available_devices()
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
@@ -121,8 +122,11 @@ def main(args):
     else:
         loaded_data = quick_eval_data_loader()
         train_loader = [loaded_data for _ in range(5)]
-        dev_loader = [loaded_data]
+        dev_loader = [quick_eval_data_loader(dev=True)]
         train_dataset = train_loader
+        dev_dataset = dev_loader
+        
+
 
     log.info('Built dataset: {}:{}'.format(*divmod((datetime.now()-startime).seconds, 60)))
     traintime = datetime.now()
@@ -174,7 +178,7 @@ def main(args):
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 loss_val = loss.item()
 
-                if time_log:
+                if time_log > 1:
                     forwardtime = datetime.now()
                     log.info('Forward time {}:{}'.format(*divmod((forwardtime-itertime).seconds, 60)))
                 # Backward
@@ -256,7 +260,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
 
 
     with torch.no_grad(), \
-            tqdm(total=len(data_loader.dataset)) as progress_bar:
+            tqdm(total=progress_len) as progress_bar:
         for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in data_loader:
             # Setup for forward
             cw_idxs = cw_idxs.to(device)
@@ -311,32 +315,37 @@ def log_info(logger, obj, name):
     logger.info(f'Name: {name} | Type: {typ} | Shape: {shape}')
 
 
-def quick_eval_data_saver(cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids, path='./data/quick_eval/'):
-    cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
-    torch.save(cw_idxs, path + 'cw_idxs.pt')
-    torch.save(cc_idxs, path + 'cc_idxs.pt')
-    torch.save(qw_idxs, path + 'qw_idxs.pt')
-    torch.save(qc_idxs, path + 'qc_idxs.pt')
-    torch.save(y1, path + 'y1.pt')
-    torch.save(y2, path + 'y2.pt')
-    torch.save(ids, path + 'ids.pt')
+def quick_eval_data_saver(cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids, dev=False, path='./data/quick_eval/'):
+    if dev:
+        path = os.path.join(path, 'dev')
+    else:
+        path = os.path.join(path, 'train')
+
+    torch.save(cw_idxs, os.path.join(path, 'cw_idxs.pt'))
+    torch.save(cc_idxs, os.path.join(path, 'cc_idxs.pt'))
+    torch.save(qw_idxs, os.path.join(path, 'qw_idxs.pt'))
+    torch.save(qc_idxs, os.path.join(path, 'qc_idxs.pt'))
+    torch.save(y1, os.path.join(path, 'y1.pt'))
+    torch.save(y2, os.path.join(path, 'y2.pt'))
+    torch.save(ids, os.path.join(path, 'ids.pt'))
 
 
-def quick_eval_data_loader(path='./data/quick_eval/'):
-    context_size = 96
-    char_depth = 16
-    query_size = 8
+def quick_eval_data_loader(dev=False, path='./data/quick_eval/'):
+    if dev:
+        path = os.path.join(path, 'dev')
+    else:
+        path = os.path.join(path, 'train')
 
 
-    cw_idxs = torch.load(path + 'cw_idxs.pt')
-    cc_idxs = torch.load(path + 'cc_idxs.pt')
-    qw_idxs = torch.load(path + 'qw_idxs.pt')
-    qc_idxs = torch.load(path + 'qc_idxs.pt')
+    cw_idxs = torch.load(os.path.join(path, 'cw_idxs.pt'))
+    cc_idxs = torch.load(os.path.join(path, 'cc_idxs.pt'))
+    qw_idxs = torch.load(os.path.join(path, 'qw_idxs.pt'))
+    qc_idxs = torch.load(os.path.join(path, 'qc_idxs.pt'))
 
-    y1 = torch.load(path + 'y1.pt')
-    y2 = torch.load(path + 'y2.pt')
+    y1 = torch.load(os.path.join(path, 'y1.pt'))
+    y2 = torch.load(os.path.join(path, 'y2.pt'))
 
-    ids = torch.load(path + 'ids.pt')
+    ids = torch.load(os.path.join(path, 'ids.pt'))
 
     return cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
 
