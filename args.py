@@ -140,6 +140,13 @@ def get_train_args():
                         default='BiDAF',
                         help='Select model name. [BiDAF, BiDAFplus].')
 
+    parser.add_argument('--mode',
+                        type=str,
+                        default='standard',
+                        help='Use "quick_eval" for local testing')
+
+
+
     '''
     parser.add_argument('--phrase_encoder',
                         type=str,

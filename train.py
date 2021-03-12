@@ -23,17 +23,62 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
+from datetime import datetime
+
+def log_info(logger, obj, name):
+    typ = type(obj)
+    shape = obj.shape
+    logger.info(f'Name: {name} | Type: {typ} | Shape: {shape}')
 
 
+def quick_eval_data_saver(cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids, path='./data/quick_eval/'):
+    cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
+    torch.save(cw_idxs, path + 'cw_idxs.pt')
+    torch.save(cc_idxs, path + 'cc_idxs.pt')
+    torch.save(qw_idxs, path + 'qw_idxs.pt')
+    torch.save(qc_idxs, path + 'qc_idxs.pt')
+    torch.save(y1, path + 'y1.pt')
+    torch.save(y2, path + 'y2.pt')
+    torch.save(ids, path + 'ids.pt')
+
+
+def quick_eval_data_loader(path='./data/quick_eval/'):
+    context_size = 96
+    char_depth = 16
+    query_size = 8
+
+
+    cw_idxs = torch.load(path + 'cw_idxs.pt')
+    cc_idxs = torch.load(path + 'cc_idxs.pt')
+    qw_idxs = torch.load(path + 'qw_idxs.pt')
+    qc_idxs = torch.load(path + 'qc_idxs.pt')
+
+    y1 = torch.load(path + 'y1.pt')
+    y2 = torch.load(path + 'y2.pt')
+
+    ids = torch.load(path + 'ids.pt')
+
+    return cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
+
+'''
+Usage:
+    python train.py -n NAME --model {BiDAF, BiDAFplus} OPTIONAL --mode quick_eval
+
+'''
 def main(args):
     # Set up logging and devices
+    startime = datetime.now()
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
     log = util.get_logger(args.save_dir, args.name)
+
+    log.info(f'Start training at: {startime.strftime("%H:%M:%S")}')
     tbx = SummaryWriter(args.save_dir)
     device, args.gpu_ids = util.get_available_devices()
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
     args.batch_size *= max(1, len(args.gpu_ids))
     model_type = args.model
+
+
 
     # Set random seed
     log.info(f'Using random seed {args.seed}...')
@@ -50,19 +95,21 @@ def main(args):
     print(f'{args.word_emb_file}')
     word_vectors = util.torch_from_json(args.word_emb_file)
     char_vectors = util.torch_from_json(args.char_emb_file)
+    log.info(f'Loaded embeddings: {(datetime.now()-startime).seconds}')
     # load_char_vectors
     # Get model
     log.info('Building model...')
     if model_type == 'BiDAFplus':
         model = BiDAFplus(word_vectors=word_vectors,
                           char_vectors=char_vectors,
-                          hidden_size=args.hidden_size,
-                          drop_prob=args.drop_prob)
+                          hidden_size=args.hidden_size)
     else:
         model = BiDAF(word_vectors=word_vectors, #char_vectors=char_vectors,
                       hidden_size=args.hidden_size,
                       drop_prob=args.drop_prob)
+
     model = nn.DataParallel(model, args.gpu_ids)
+    log.info(f'Built model: {(datetime.now()-startime).seconds}')
     if args.load_path:
         log.info(f'Loading checkpoint from {args.load_path}...')
         model, step = util.load_model(model, args.load_path, args.gpu_ids)
@@ -86,29 +133,61 @@ def main(args):
 
     # Get data loader
     log.info('Building dataset...')
-    train_dataset = SQuAD(args.train_record_file, args.use_squad_v2)
-    train_loader = data.DataLoader(train_dataset,
-                                   batch_size=args.batch_size,
-                                   shuffle=True,
-                                   num_workers=args.num_workers,
-                                   collate_fn=collate_fn)
-    dev_dataset = SQuAD(args.dev_record_file, args.use_squad_v2)
-    dev_loader = data.DataLoader(dev_dataset,
-                                 batch_size=args.batch_size,
-                                 shuffle=False,
-                                 num_workers=args.num_workers,
-                                 collate_fn=collate_fn)
+    if args.mode != 'quick_eval':
+        train_dataset = SQuAD(args.train_record_file, args.use_squad_v2)
+        train_loader = data.DataLoader(train_dataset,
+                                       batch_size=args.batch_size,
+                                       shuffle=True,
+                                       num_workers=args.num_workers,
+                                       collate_fn=collate_fn)
 
+        dev_dataset = SQuAD(args.dev_record_file, args.use_squad_v2)
+        dev_loader = data.DataLoader(dev_dataset,
+                                     batch_size=args.batch_size,
+                                     shuffle=False,
+                                     num_workers=args.num_workers,
+                                     collate_fn=collate_fn)
+
+    else:
+        loaded_data = quick_eval_data_loader()
+        train_loader = [loaded_data for _ in range(5)]
+        dev_loader = [loaded_data]
+        train_dataset = train_loader
+
+    log.info('Built dataset: {}:{}'.format(*divmod((datetime.now()-startime).seconds, 60)))
+    traintime = datetime.now()
     # Train
     log.info('Training...')
     steps_till_eval = args.eval_steps
     epoch = step // len(train_dataset)
+
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}...')
+        if args.mode != 'quick_eval':
+            progress_len = len(train_loader.dataset)
+        else:
+            progress_len = 5
         with torch.enable_grad(), \
-                tqdm(total=len(train_loader.dataset)) as progress_bar:
+                tqdm(total=progress_len) as progress_bar:
+
+            i = 0
             for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in train_loader:
+                # GET RID OF THIS FOR RUNNING
+                '''
+                log_info(log, cw_idxs, 'cw_idxs')
+                log_info(log, cc_idxs, 'cc_idxs')
+                log_info(log, qw_idxs, 'qw_idxs')
+                log_info(log, qc_idxs, 'qc_idxs')
+                log_info(log, y1, 'y1')
+                log_info(log, y2, 'y2')
+                log_info(log, ids, 'ids')
+                '''
+                #quick_eval_data_saver(cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids)
+
+
+                #########
+
                 # Setup for forward
                 cw_idxs = cw_idxs.to(device)
                 qw_idxs = qw_idxs.to(device)
@@ -149,7 +228,7 @@ def main(args):
                                step)
 
                 steps_till_eval -= batch_size
-                if steps_till_eval <= 0:
+                if steps_till_eval <= 0 or args.mode == 'quick_eval':
                     steps_till_eval = args.eval_steps
 
                     # Evaluate and save checkpoint

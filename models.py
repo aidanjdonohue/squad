@@ -94,11 +94,13 @@ class BiDAFplus(nn.Module):
         #print(f'lens: {w_len} c_len: {c_len}')
 
 
-        if self.phrase_encoder == 'rnn':
+        if self.phrase_encoder == 'lstm':
             encoding = self.enc(embd, lens)
 
         elif self.phrase_encoder == 'gru':
             encoding = self.enc(embd, lens)
+        else:
+            raise Exception('Invalid phrase_encoder')
         
         return encoding
 
