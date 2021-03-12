@@ -23,7 +23,7 @@ from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
 
-model_type = ''
+
 
 def main(args):
     # Set up logging and devices
@@ -33,7 +33,7 @@ def main(args):
     device, args.gpu_ids = util.get_available_devices()
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
     args.batch_size *= max(1, len(args.gpu_ids))
-    
+    model_type = args.model
 
     # Set random seed
     log.info(f'Using random seed {args.seed}...')
@@ -53,7 +53,7 @@ def main(args):
     # load_char_vectors
     # Get model
     log.info('Building model...')
-    if args.model == 'BiDAFplus':
+    if model_type == 'BiDAFplus':
         model = BiDAFplus(word_vectors=word_vectors,
                           char_vectors=char_vectors,
                           hidden_size=args.hidden_size,
@@ -115,7 +115,8 @@ def main(args):
                 batch_size = cw_idxs.size(0)
                 optimizer.zero_grad()
 
-                if model.model_name == 'BiDAFplus':
+                
+                if model_type == 'BiDAFplus':
                     cc_idxs = cc_idxs.to(device)
                     qc_idxs = qc_idxs.to(device)
 
@@ -157,7 +158,8 @@ def main(args):
                     results, pred_dict = evaluate(model, dev_loader, device,
                                                   args.dev_eval_file,
                                                   args.max_ans_len,
-                                                  args.use_squad_v2)
+                                                  args.use_squad_v2,
+                                                  model_type)
                     saver.save(step, model, results[args.metric_name], device)
                     ema.resume(model)
 
@@ -177,7 +179,7 @@ def main(args):
                                    num_visuals=args.num_visuals)
 
 
-def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
+def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model_type):
     nll_meter = util.AverageMeter()
 
     model.eval()
@@ -193,7 +195,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2):
             batch_size = cw_idxs.size(0)
 
             # Forward
-            if model.model_name == 'BiDAFplus':
+            if model_type == 'BiDAFplus':
 
                 qc_idxs = qc_idxs.to(device)
                 cc_idxs = cc_idxs.to(device)

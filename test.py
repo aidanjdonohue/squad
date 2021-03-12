@@ -37,6 +37,7 @@ def main(args):
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
     device, gpu_ids = util.get_available_devices()
     args.batch_size *= max(1, len(gpu_ids))
+    model_type = args.model
 
     # Get embeddings
     log.info('Loading embeddings...')
@@ -45,8 +46,8 @@ def main(args):
     # char_vectors = load_char_vectors
     # Get model
     log.info('Building model...')
-    if args.model == 'BiDAFplus':
-        model = BiDAF(word_vectors=word_vectors,
+    if model_type == 'BiDAFplus':
+        model = BiDAFpluslus(word_vectors=word_vectors,
                       char_vectors=char_vectors,
                       hidden_size=args.hidden_size)
     else:
@@ -83,7 +84,7 @@ def main(args):
             cw_idxs = cw_idxs.to(device)
             qw_idxs = qw_idxs.to(device)
             batch_size = cw_idxs.size(0)
-            if model.model_name == 'BiDAFplus':
+            if model_type == 'BiDAFplus':
                 cc_idxs = cc_idxs.to(device)
                 qc_idxs = qc_idxs.to(device)
 
