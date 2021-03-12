@@ -22,7 +22,7 @@ class SelfAttModel(nn.Module):
         self.pos_embd = embedding.PositionEmbedding(word_vectors=word_vectors,
                                                 hidden_size=hidden_size, 
                                                 drop_prob=drop_prob)
-        #self.hwy = encoder.HighwayEncoder(2, 2*hidden_size)
+        self.hwy = encoder.HighwayEncoder(2, 2*hidden_size)
 
         #self.enc = encoder.SelfAttEncoder(input_size=2*hidden_size,
         #                             hidden_size=hidden_size,
@@ -59,7 +59,7 @@ class SelfAttModel(nn.Module):
 
         #print(f'cat_embd shape {embd.shape}')
 
-        #embd = self.hwy(embd)
+        embd = self.hwy(embd)
         #print(f'hwy_embd shape {embd.shape}')
         lens = w_len #+ c_len
         #print(f'lens: {w_len} c_len: {c_len}')
