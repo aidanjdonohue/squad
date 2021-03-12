@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 
-params = {
+bdp_params = {
     'phrase_encoder': 'lstm', #'gru'
     'out_channels': 100,
     'filters': [[1,5]],
@@ -30,7 +30,7 @@ class BiDAFplus(nn.Module):
     # word_embeddings + char_embeddings -> encoder / (phrase embeddings)
 
    
-    def __init__(self, word_vectors, char_vectors, hidden_size, params=params):
+    def __init__(self, word_vectors, char_vectors, hidden_size, params=bdp_params):
         super(BiDAFplus, self).__init__()
 
         self.model_name = 'BiDAFplus'
@@ -40,7 +40,11 @@ class BiDAFplus(nn.Module):
                                                  drop_prob=params['drop_prob'])
 
 
-        self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors)
+        self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors,
+                                                 drop_prob=params['drop_prob'],
+                                                 filters=params['filters'],
+                                                 out_channels=params['out_channels']
+                                                 )
 
         # input size = CharEmbedding Size
 
@@ -60,21 +64,21 @@ class BiDAFplus(nn.Module):
         self.enc = encoder_fn(input_size=self.d,
                               hidden_size=self.d,
                               num_layers=params['encoder_layers'],
-                              drop_prob=params['drop_prob']) 
+                              drop_prob=params['drop_prob'])
         
 
 
 
-        self.att = bidaf.BiDAFAttention(hidden_size=self.d,
+        self.att = bidaf.BiDAFAttention(hidden_size=2*self.d,
                                         drop_prob=params['drop_prob'])
 
-        self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
-                                     hidden_size=hidden_size,
-                                     num_layers=params['model_layers'],
-                                     drop_prob=params['drop_prob'])
-
-        self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
+        self.mod = encoder.RNNEncoder(input_size=8 * self.d,
+                                      hidden_size=self.d,
+                                      num_layers=params['model_layers'],
                                       drop_prob=params['drop_prob'])
+
+        self.out = bidaf.BiDAFOutput(hidden_size=self.d,
+                                     drop_prob=params['drop_prob'])
 
     def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
         char_embd = self.char_embd(x_c)
@@ -125,15 +129,15 @@ class BiDAFplus(nn.Module):
         q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_len, qc_len)
 
         # hs = 2x
-        print(f'context_encoder {c_enc.shape}')
-        print(f'query_encoder {q_enc.shape}')
+        #print(f'context_encoder {c_enc.shape}')
+        #print(f'query_encoder {q_enc.shape}')
         #print(f'Expecting batch, cw_len, 800')
         # need to figure this out
         att = self.att(c_enc, q_enc,
-                       cw_mask, qw_mask)    # (batch_size, c_len, 8 * hidden_size)
+                       cw_mask, qw_mask)    # (batch_size, c_len, 8 * d)
         
         #print(f'att shape {att.shape}')
-        mod = self.mod(att, cw_len)        # (batch_size, c_len, 2 * hidden_size)
+        mod = self.mod(att, cw_len)        # (batch_size, c_len, 2 * d)
         
         #print(f'mod shape {mod.shape}')
         out = self.out(att, mod, cw_mask)  # 2 tensors, each (batch_size, c_len)

@@ -25,40 +25,6 @@ from util import collate_fn, SQuAD
 
 from datetime import datetime
 
-def log_info(logger, obj, name):
-    typ = type(obj)
-    shape = obj.shape
-    logger.info(f'Name: {name} | Type: {typ} | Shape: {shape}')
-
-
-def quick_eval_data_saver(cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids, path='./data/quick_eval/'):
-    cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
-    torch.save(cw_idxs, path + 'cw_idxs.pt')
-    torch.save(cc_idxs, path + 'cc_idxs.pt')
-    torch.save(qw_idxs, path + 'qw_idxs.pt')
-    torch.save(qc_idxs, path + 'qc_idxs.pt')
-    torch.save(y1, path + 'y1.pt')
-    torch.save(y2, path + 'y2.pt')
-    torch.save(ids, path + 'ids.pt')
-
-
-def quick_eval_data_loader(path='./data/quick_eval/'):
-    context_size = 96
-    char_depth = 16
-    query_size = 8
-
-
-    cw_idxs = torch.load(path + 'cw_idxs.pt')
-    cc_idxs = torch.load(path + 'cc_idxs.pt')
-    qw_idxs = torch.load(path + 'qw_idxs.pt')
-    qc_idxs = torch.load(path + 'qc_idxs.pt')
-
-    y1 = torch.load(path + 'y1.pt')
-    y2 = torch.load(path + 'y2.pt')
-
-    ids = torch.load(path + 'ids.pt')
-
-    return cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
 
 '''
 Usage:
@@ -71,7 +37,11 @@ def main(args):
     args.save_dir = util.get_save_dir(args.save_dir, args.name, training=True)
     log = util.get_logger(args.save_dir, args.name)
 
-    log.info(f'Start training at: {startime.strftime("%H:%M:%S")}')
+    time_log = args.log_time
+    if time_log > 0:
+        log.info(f'Start training at: {startime.strftime("%H:%M:%S")}')
+
+        
     tbx = SummaryWriter(args.save_dir)
     device, args.gpu_ids = util.get_available_devices()
     log.info(f'Args: {dumps(vars(args), indent=4, sort_keys=True)}')
@@ -164,30 +134,24 @@ def main(args):
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}...')
+        if time_log > 0:
+            epochtime = datetime.now()
         if args.mode != 'quick_eval':
             progress_len = len(train_loader.dataset)
         else:
-            progress_len = 5
+            progress_len = len(train_loader)
         with torch.enable_grad(), \
                 tqdm(total=progress_len) as progress_bar:
 
-            i = 0
+            
             for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in train_loader:
-                # GET RID OF THIS FOR RUNNING
-                '''
-                log_info(log, cw_idxs, 'cw_idxs')
-                log_info(log, cc_idxs, 'cc_idxs')
-                log_info(log, qw_idxs, 'qw_idxs')
-                log_info(log, qc_idxs, 'qc_idxs')
-                log_info(log, y1, 'y1')
-                log_info(log, y2, 'y2')
-                log_info(log, ids, 'ids')
-                '''
+                
                 #quick_eval_data_saver(cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids)
 
 
                 #########
-
+                if time_log > 0:
+                    itertime = datetime.now()
                 # Setup for forward
                 cw_idxs = cw_idxs.to(device)
                 qw_idxs = qw_idxs.to(device)
@@ -210,6 +174,9 @@ def main(args):
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 loss_val = loss.item()
 
+                if time_log:
+                    forwardtime = datetime.now()
+                    log.info('Forward time {}:{}'.format(*divmod((forwardtime-itertime).seconds, 60)))
                 # Backward
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
@@ -217,6 +184,9 @@ def main(args):
                 scheduler.step(step // batch_size)
                 ema(model, step // batch_size)
 
+                if time_log > 1:
+                    backwardtime = datetime.now()
+                    log.info('Backward time {}:{}'.format(*divmod((backwardtime-forwardtime).seconds, 60)))
                 # Log info
                 step += batch_size
                 progress_bar.update(batch_size)
@@ -226,6 +196,11 @@ def main(args):
                 tbx.add_scalar('train/LR',
                                optimizer.param_groups[0]['lr'],
                                step)
+
+                if time_log > 0:
+                    enditertime = datetime.now()
+                    log.info('Iteration time {}:{}'.format(
+                        *divmod((enditertime-itertime).seconds, 60)))
 
                 steps_till_eval -= batch_size
                 if steps_till_eval <= 0 or args.mode == 'quick_eval':
@@ -238,11 +213,15 @@ def main(args):
                                                   args.dev_eval_file,
                                                   args.max_ans_len,
                                                   args.use_squad_v2,
-                                                  model_type)
+                                                  model_type,
+                                                  quick_eval=args.mode=='quick_eval')
                     saver.save(step, model, results[args.metric_name], device)
                     ema.resume(model)
 
                     # Log to console
+                    if time_log > 1:
+                        log.info('Eval time {}:{}'.format(*divmod((datetime.now()-enditertime).seconds, 60)))
+                    
                     results_str = ', '.join(f'{k}: {v:05.2f}' for k, v in results.items())
                     log.info(f'Dev {results_str}')
 
@@ -256,15 +235,26 @@ def main(args):
                                    step=step,
                                    split='dev',
                                    num_visuals=args.num_visuals)
+        if time_log > 0:
+            endepochtime = datetime.now()
+            log.info('Forward time {}:{}'.format(*divmod((endepochtime-epochtime).seconds, 60)))
 
 
-def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model_type):
+
+def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model_type, quick_eval=False):
     nll_meter = util.AverageMeter()
 
     model.eval()
     pred_dict = {}
     with open(eval_file, 'r') as fh:
         gold_dict = json_load(fh)
+
+    if not quick_eval:
+        progress_len = len(data_loader.dataset)
+    else:
+        progress_len = len(data_loader)
+
+
     with torch.no_grad(), \
             tqdm(total=len(data_loader.dataset)) as progress_bar:
         for cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids in data_loader:
@@ -313,6 +303,42 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
     results = OrderedDict(results_list)
 
     return results, pred_dict
+
+
+def log_info(logger, obj, name):
+    typ = type(obj)
+    shape = obj.shape
+    logger.info(f'Name: {name} | Type: {typ} | Shape: {shape}')
+
+
+def quick_eval_data_saver(cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids, path='./data/quick_eval/'):
+    cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
+    torch.save(cw_idxs, path + 'cw_idxs.pt')
+    torch.save(cc_idxs, path + 'cc_idxs.pt')
+    torch.save(qw_idxs, path + 'qw_idxs.pt')
+    torch.save(qc_idxs, path + 'qc_idxs.pt')
+    torch.save(y1, path + 'y1.pt')
+    torch.save(y2, path + 'y2.pt')
+    torch.save(ids, path + 'ids.pt')
+
+
+def quick_eval_data_loader(path='./data/quick_eval/'):
+    context_size = 96
+    char_depth = 16
+    query_size = 8
+
+
+    cw_idxs = torch.load(path + 'cw_idxs.pt')
+    cc_idxs = torch.load(path + 'cc_idxs.pt')
+    qw_idxs = torch.load(path + 'qw_idxs.pt')
+    qc_idxs = torch.load(path + 'qc_idxs.pt')
+
+    y1 = torch.load(path + 'y1.pt')
+    y2 = torch.load(path + 'y2.pt')
+
+    ids = torch.load(path + 'ids.pt')
+
+    return cw_idxs, cc_idxs, qw_idxs, qc_idxs, y1, y2, ids
 
 
 if __name__ == '__main__':

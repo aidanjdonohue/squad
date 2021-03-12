@@ -145,6 +145,11 @@ def get_train_args():
                         default='standard',
                         help='Use "quick_eval" for local testing')
 
+    parser.add_argument('--log_time',
+                        type=int,
+                        default=1,
+                        help='0 for no time logging. 1 for iteration and epoch time logging. 2 for detailed time logging.')
+
 
 
     '''
