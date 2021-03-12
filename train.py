@@ -131,12 +131,14 @@ def main(args):
 
 
     log.info('Built dataset: {}:{}'.format(*divmod((datetime.now()-startime).seconds, 60)))
-    traintime = datetime.now()
+
     # Train
     log.info('Training...')
     steps_till_eval = args.eval_steps
     epoch = step // len(train_dataset)
-
+    if time_log > 0:
+        traintime = datetime.now()
+    total_iterations = 0
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}...')
@@ -180,7 +182,7 @@ def main(args):
                 loss = F.nll_loss(log_p1, y1) + F.nll_loss(log_p2, y2)
                 loss_val = loss.item()
 
-                if time_log > 1:
+                if time_log > 2:
                     forwardtime = datetime.now()
                     log.info('Forward time {}:{}'.format(*divmod((forwardtime-itertime).seconds, 60)))
                 # Backward
@@ -190,7 +192,7 @@ def main(args):
                 scheduler.step(step // batch_size)
                 ema(model, step // batch_size)
 
-                if time_log > 1:
+                if time_log > 2:
                     backwardtime = datetime.now()
                     log.info('Backward time {}:{}'.format(*divmod((backwardtime-forwardtime).seconds, 60)))
                 # Log info
@@ -205,7 +207,7 @@ def main(args):
 
                 if time_log > 0:
                     enditertime = datetime.now()
-                    log.info('Iteration time {}:{}'.format(
+                    log.info('Iteration {} {}:{}'.format(total_iterations, 
                         *divmod((enditertime-itertime).seconds, 60)))
 
                 steps_till_eval -= batch_size
@@ -241,9 +243,13 @@ def main(args):
                                    step=step,
                                    split='dev',
                                    num_visuals=args.num_visuals)
+                total_iterations += 1
+                if ((time_log == 2) and (total_iterations % 10 == 0)) or ((time_log == 1) and (total_iterations % 100 == 0)):
+                    log.info('Mean iteration time {}:{}'.format(*divmod((enditertime-traintime).seconds / total_iterations, 60)))
+
         if time_log > 0:
             endepochtime = datetime.now()
-            log.info('Forward time {}:{}'.format(*divmod((endepochtime-epochtime).seconds, 60)))
+            log.info('Epoch time {}:{}'.format(*divmod((endepochtime-epochtime).seconds, 60)))
 
 
 

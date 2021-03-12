@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 
-
+from datetime import datetime
 
 
 class SelfAttModel(nn.Module):
@@ -51,7 +51,7 @@ class SelfAttModel(nn.Module):
         pos_embd = self.pos_embd(x_c)
 
         #print("Char emb shape:", char_embd.shape, 
-        print("word emb shape:", word_embd.shape)
+        #print("word emb shape:", word_embd.shape)
         #print("Pos embd shape:", pos_embd.shape)
 
         #print(f'char_embd shape{char_embd.shape}')
@@ -161,10 +161,16 @@ class BiDAFplus(nn.Module):
                                      drop_prob=params['drop_prob'])
 
     def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
+
+        # embed_size = 100
         char_embd = self.char_embd(x_c)
 
         word_embd = self.word_embd(x_w)
 
+        print("{:<6} {:<32} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.1', 'Char Embedding Layer',
+                                                      'N', 'seq_len', 'embd_size', *char_embd.shape))
+        print("{:<6} {:<32} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.2', 'Word Embedding Layer',
+                                                      'N', 'seq_len', 'embd_size', *word_embd.shape))
         #print(f'char_embd shape{char_embd.shape}')
         #print(f'word_embd shape{word_embd.shape}')
 
@@ -173,10 +179,13 @@ class BiDAFplus(nn.Module):
         #print(f'cat_embd shape {embd.shape}')
 
         embd = self.hwy(embd)
+        
+
         #print(f'hwy_embd shape {embd.shape}')
         lens = w_len #+ c_len
         #print(f'lens: {w_len} c_len: {c_len}')
-
+        print("{:<6} {:<32} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.2b', 'Highway Out',
+                                                      'N', 'seq_len', 'd', *embd.shape))
 
         if self.phrase_encoder == 'lstm':
             encoding = self.enc(embd, lens)
@@ -186,12 +195,19 @@ class BiDAFplus(nn.Module):
         else:
             raise Exception('Invalid phrase_encoder')
         
+
+        
+
+
         return encoding
 
 
 
     # ctx_w, ctx_c, query_w, query_c
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
+        print(f'Embed_size: {cw_idxs.shape(2)}. d={self.d}')
+        print(f'Context sequence Length: T={len(cw_idxs)}')
+        print(f'Query sequence Length: J={len(qw_idxs)}')
         cw_mask = torch.zeros_like(cw_idxs) != cw_idxs
         qw_mask = torch.zeros_like(qw_idxs) != qw_idxs
         cw_len, qw_len = cw_mask.sum(-1), qw_mask.sum(-1)
@@ -207,6 +223,12 @@ class BiDAFplus(nn.Module):
      
         c_enc = self.build_contextual_encoding(cw_idxs, cc_idxs, cw_len, cc_len)
         q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_len, qc_len)
+        print("{:<6} {:<48} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.3a', 'Context Contextual Embedding Layer',
+                                                      'N', 'T', '2d', *c_enc.shape))
+
+        print("{:<6} {:<48} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.3b', 'Context Contextual Embedding Layer',
+                                                      'N', 'J', '2d', *q_enc.shape))
+
 
         # hs = 2x
         #print(f'context_encoder {c_enc.shape}')
@@ -245,30 +267,40 @@ class BiDAF(nn.Module):
         hidden_size (int): Number of features in the hidden state at each layer.
         drop_prob (float): Dropout probability.
     """
-    def __init__(self, word_vectors, hidden_size, drop_prob=0.):
+    def __init__(self, word_vectors, hidden_size, drop_prob=0.2):
         super(BiDAF, self).__init__()
 
         self.model_name = 'BiDAF'
 
 
         self.emb = embedding.Embedding(word_vectors=word_vectors,
-                                    hidden_size=hidden_size,
-                                    drop_prob=drop_prob)
+                                       hidden_size=hidden_size,
+                                       drop_prob=drop_prob)
 
 
-        self.enc = encoder.RNNEncoder(input_size=hidden_size,
-                                     hidden_size=hidden_size,
-                                     num_layers=1,
-                                     drop_prob=drop_prob)
-
+        self.enc = encoder.GRUEncoder(input_size=hidden_size,
+                                      hidden_size=hidden_size,
+                                      num_layers=1,
+                                      drop_prob=drop_prob)
+        '''
+        self.gru = encoder.GRUEncoder(input_size=hidden_size,
+                                       hidden_size=hidden_size,
+                                       num_layers=1,
+                                       drop_prob=drop_prob)
+        '''
         self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
-                                         drop_prob=drop_prob)
+                                        drop_prob=drop_prob)
 
-        self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
-                                     hidden_size=hidden_size,
-                                     num_layers=2,
-                                     drop_prob=drop_prob)
-
+        self.mod = encoder.GRUEncoder(input_size=8 * hidden_size,
+                                      hidden_size=hidden_size,
+                                      num_layers=2,
+                                      drop_prob=drop_prob)
+        '''
+        self.gru_mod = encoder.GRUEncoder(input_size=8 * hidden_size,
+                                      hidden_size=hidden_size,
+                                      num_layers=2,
+                                      drop_prob=drop_prob)
+        '''
         self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
                                       drop_prob=drop_prob)
 
@@ -282,14 +314,50 @@ class BiDAF(nn.Module):
         c_emb = self.emb(cw_idxs)         # (batch_size, c_len, hidden_size)
         q_emb = self.emb(qw_idxs)         # (batch_size, q_len, hidden_size)
 
+
+        #lstm_start_time = datetime.now()
+
         c_enc = self.enc(c_emb, c_len)    # (batch_size, c_len, 2 * hidden_size)
         q_enc = self.enc(q_emb, q_len)    # (batch_size, q_len, 2 * hidden_size)
+        '''
+        gru_start_time = datetime.now()
 
+        gru_c_enc = self.enc(c_emb, c_len)
+        gru_q_enc = self.enc(q_emb, q_len)
+
+        gru_stop_time = datetime.now()
+
+
+        lstm_elapsed_time = "{}".format((gru_start_time-lstm_start_time).microseconds * .001)
+        gru_elapsed_time = "{}".format((gru_stop_time-gru_start_time).microseconds * .001)
+        print('='*20)
+        print('{:<8} {:<16} {:<16} {:<8}'.format('Encoder', 'C_shape', 'Q_shape', 'Time'))
+        print('{:<8} {:<16} {:<16} {:<8}'.format('lstm', str(c_enc.shape)[10:], str(q_enc.shape)[10:], lstm_elapsed_time))
+        print('{:<8} {:<16} {:<16} {:<8}'.format('gru', str(gru_c_enc.shape)[10:], str(gru_q_enc.shape)[10:], gru_elapsed_time))
+        print('-'*20)
+        '''
         att = self.att(c_enc, q_enc,
                        c_mask, q_mask)    # (batch_size, c_len, 8 * hidden_size)
 
+        #lstm_start_time = datetime.now()
+        
         mod = self.mod(att, c_len)        # (batch_size, c_len, 2 * hidden_size)
+        '''
+        gru_start_time = datetime.now()
 
+
+        gru_mod = self.mod(att, c_len)
+
+        gru_stop_time = datetime.now()
+
+        lstm_elapsed_time = "{}".format((gru_start_time-lstm_start_time).microseconds * .001)
+        gru_elapsed_time = "{}".format((gru_stop_time-gru_start_time).microseconds * .001)
+
+        print('{:<8} {:<16} {:<8}'.format('Model', 'Shape', 'Time'))
+        print('{:<8} {:<16} {:<8}'.format('lstm', str(mod.shape)[10:], lstm_elapsed_time))
+        print('{:<8} {:<16} {:<8}'.format('gru', str(gru_mod.shape)[10:], gru_elapsed_time))
+        print('='*20)
+        '''
         out = self.out(att, mod, c_mask)  # 2 tensors, each (batch_size, c_len)
 
         return out

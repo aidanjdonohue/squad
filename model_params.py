@@ -9,6 +9,15 @@ master = {
             'model_layers': 2,
             'encoder_layers': 1,
         },
+        'gru_enc': {
+            'phrase_encoder': 'gru', #'gru'
+            'out_channels': 100,
+            'filters': [[1,5]],
+            'drop_prob': 0.2,
+            'hwy_layers': 2,
+            'model_layers': 2,
+            'encoder_layers': 1,
+        },
 
     },
     'SelfAttention': {
