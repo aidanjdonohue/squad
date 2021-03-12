@@ -11,15 +11,7 @@ import torch
 import torch.nn as nn
 
 
-bdp_params = {
-    'phrase_encoder': 'lstm', #'gru'
-    'out_channels': 100,
-    'filters': [[1,5]],
-    'drop_prob': 0.2,
-    'hwy_layers': 2,
-    'model_layers': 2,
-    'encoder_layers': 1,
-}
+
 
 
 class SelfAttModel(nn.Module):
@@ -118,7 +110,7 @@ class BiDAFplus(nn.Module):
     # word_embeddings + char_embeddings -> encoder / (phrase embeddings)
 
    
-    def __init__(self, word_vectors, char_vectors, hidden_size, params=bdp_params):
+    def __init__(self, word_vectors, char_vectors, hidden_size, params):
         super(BiDAFplus, self).__init__()
 
         self.model_name = 'BiDAFplus'

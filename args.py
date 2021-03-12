@@ -150,6 +150,11 @@ def get_train_args():
                         default=1,
                         help='0 for no time logging. 1 for iteration and epoch time logging. 2 for detailed time logging.')
 
+    parser.add_argument('--params',
+                        type=str,
+                        default='default',
+                        choices=('default'),
+                        help='Name of the model params dict')
 
 
     '''

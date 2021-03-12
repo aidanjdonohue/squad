@@ -23,6 +23,7 @@ from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
+from model_params import get_params
 
 from datetime import datetime
 
@@ -73,7 +74,8 @@ def main(args):
     if model_type == 'BiDAFplus':
         model = BiDAFplus(word_vectors=word_vectors,
                           char_vectors=char_vectors,
-                          hidden_size=args.hidden_size)
+                          hidden_size=args.hidden_size,
+                          params=get_params(model_type, args.params))
     else:
         model = BiDAF(word_vectors=word_vectors, #char_vectors=char_vectors,
                       hidden_size=args.hidden_size,
