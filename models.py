@@ -10,72 +10,57 @@ import layers.bidaf as bidaf
 import torch
 import torch.nn as nn
 
-
+from math import sqrt
 from datetime import datetime
 
 
-class SelfAttModel(nn.Module):
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob=0.1):
-        super(SelfAttModel, self).__init__()
+class TransformerModel(nn.Module):
+    def __init__(self, word_vectors, char_vectors, input_size, hidden_size, num_heads=8, num_layers = 6, drop_prob=0.1):
+        super(TransformerModel, self).__init__()
 
+        #from nn import TransformerEncoder, TransformerEncoderLayer
+        self.model_type = "Transformer"
         self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
                                                 hidden_size=hidden_size,
                                                 drop_prob=drop_prob)
         self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors)
-        self.pos_embd = embedding.PositionEmbedding(word_vectors=word_vectors,
-                                                hidden_size=hidden_size, 
-                                                drop_prob=drop_prob)
-        self.hwy = encoder.HighwayEncoder(2, 2*hidden_size)
-
-        #self.enc = encoder.SelfAttEncoder(input_size=2*hidden_size,
-        #                             hidden_size=hidden_size,
-        #                             num_layers=1,
-        #                             drop_prob=drop_prob)
-
-        #self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
-        #                                 drop_prob=drop_prob)
-
-        #self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
-        #                             hidden_size=hidden_size,
-        #                             num_layers=2,
-        #                             drop_prob=drop_prob)
-
-        #self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
-        #                              drop_prob=drop_prob)
+        self.pos_embd = embedding.PositionEmbedding(d_model=input_size,
+                                                    drop_prob=drop_prob)
+        encoder_layers = nn.TransformerEncoderLayer(input_size, num_heads, hidden_size, drop_prob)
+        self.enc = nn.TransformerEncoder(encoder_layers, num_layers)
+        self.input_size = input_size
+        self.decoder = nn.Linear(input_size, len(word_vectors))
 
     def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
         char_embd = self.char_embd(x_c)
-
         word_embd = self.word_embd(x_w)
-
         pos_embd = self.pos_embd(x_c)
 
-        #print("Char emb shape:", char_embd.shape, 
-        #print("word emb shape:", word_embd.shape)
-        #print("Pos embd shape:", pos_embd.shape)
+        embd = torch.cat((char_embd, word_embd), 2)
+        # TODO concatenate pos_embd as well
+        #embd = self.hwy(embd) - Not sure if we need highway network for transformer
 
-        #print(f'char_embd shape{char_embd.shape}')
-        #print(f'word_embd shape{word_embd.shape}')
-
-        #embd = torch.cat((char_embd, word_embd), 2)
-        embd = torch.cat((char_embd, word_embd, pos_embd), 2)
-
-        #print(f'cat_embd shape {embd.shape}')
-
-        embd = self.hwy(embd)
         #print(f'hwy_embd shape {embd.shape}')
         lens = w_len #+ c_len
         #print(f'lens: {w_len} c_len: {c_len}')
-
-
 
         encoding = self.enc(embd, lens)
         
         return encoding
 
+    #https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+    def generate_square_subsequent_mask(self, sz):
+        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        return mask
 
+    #https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+    def init_weights(self):
+        initrange = 0.1
+        self.encoder.weight.data.uniform_(-initrange, initrange)
+        self.decoder.bias.data.zero_()
+        self.decoder.weight.data.uniform_(-initrange, initrange)
 
-    # ctx_w, ctx_c, query_w, query_c
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         cw_mask = torch.zeros_like(cw_idxs) != cw_idxs
         qw_mask = torch.zeros_like(qw_idxs) != qw_idxs
@@ -88,18 +73,9 @@ class SelfAttModel(nn.Module):
         c_enc = self.build_contextual_encoding(cw_idxs, cc_idxs, cw_len, cc_len)
         q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_len, qc_len)
 
-        # hs = 2x
-        #print(f'context_encoder {c_enc.shape}')
-        #print(f'query_encoder {q_enc.shape}')
-        #print(f'Expecting batch, cw_len, 800')
-        att = self.att(c_enc, q_enc,
-                       cw_mask, qw_mask)    # (batch_size, c_len, 8 * hidden_size)
-        
-        #print(f'att shape {att.shape}')
-        mod = self.mod(att, cw_len)        # (batch_size, c_len, 2 * hidden_size)
-        
-        #print(f'mod shape {mod.shape}')
-        out = self.out(att, mod, cw_mask)  # 2 tensors, each (batch_size, c_len)
+        att = self.att(c_enc, q_enc, cw_mask, qw_mask)    # (batch_size, c_len, 8 * hidden_size)        
+        mod = self.mod(att, cw_len)                       # (batch_size, c_len, 2 * hidden_size)
+        out = self.out(att, mod, cw_mask)                 # 2 tensors, each (batch_size, c_len)
 
         return out
 
