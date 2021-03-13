@@ -76,6 +76,8 @@ def main(args):
                           char_vectors=char_vectors,
                           hidden_size=args.hidden_size,
                           params=get_params(model_type, args.params))
+    elif model_type == "Transformer":
+        print("Running transformer")
     else:
         model = BiDAF(word_vectors=word_vectors, #char_vectors=char_vectors,
                       hidden_size=args.hidden_size,
