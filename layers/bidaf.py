@@ -7,6 +7,7 @@ from .util import masked_softmax
 from .encoder import RNNEncoder
 
 
+
 class BiDAFAttention(nn.Module):
     """Bidirectional attention originally used by BiDAF.
 

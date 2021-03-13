@@ -205,9 +205,9 @@ class BiDAFplus(nn.Module):
 
     # ctx_w, ctx_c, query_w, query_c
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
-        print(f'Embed_size: {cw_idxs.shape(2)}. d={self.d}')
-        print(f'Context sequence Length: T={len(cw_idxs)}')
-        print(f'Query sequence Length: J={len(qw_idxs)}')
+        print(f'd={self.d}')
+        print(f'Context sequence Length: T={cw_idxs.size(1)}')
+        print(f'Query sequence Length: J={qw_idxs.size(1)}')
         cw_mask = torch.zeros_like(cw_idxs) != cw_idxs
         qw_mask = torch.zeros_like(qw_idxs) != qw_idxs
         cw_len, qw_len = cw_mask.sum(-1), qw_mask.sum(-1)
@@ -226,7 +226,7 @@ class BiDAFplus(nn.Module):
         print("{:<6} {:<48} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.3a', 'Context Contextual Embedding Layer',
                                                       'N', 'T', '2d', *c_enc.shape))
 
-        print("{:<6} {:<48} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.3b', 'Context Contextual Embedding Layer',
+        print("{:<6} {:<48} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.3b', 'Query Contextual Embedding Layer',
                                                       'N', 'J', '2d', *q_enc.shape))
 
 
@@ -270,7 +270,6 @@ class BiDAF(nn.Module):
     def __init__(self, word_vectors, hidden_size, drop_prob=0.2):
         super(BiDAF, self).__init__()
 
-        self.model_name = 'BiDAF'
 
 
         self.emb = embedding.Embedding(word_vectors=word_vectors,
