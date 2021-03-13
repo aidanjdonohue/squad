@@ -103,12 +103,11 @@ class CharEmbedding(nn.Module):
         # N, Cout, len(filter_heights)
         return x
 
-https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+# https://pytorch.org/tutorials/beginner/transformer_tutorial.html
 class PositionEmbedding(nn.Module):
     def __init__(self, d_model, drop_prob=0.1, max_len=5000):
         super(PositionEmbedding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
+        self.dropout = nn.Dropout(drop_prob)
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-log(10000.0) / d_model))
