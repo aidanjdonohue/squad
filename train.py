@@ -18,7 +18,7 @@ import util
 from args import get_train_args
 from collections import OrderedDict
 from json import dumps
-from models import BiDAF, BiDAFplus, SelfAttModel
+from models import BiDAF, BiDAFplus, TransformerModel
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
@@ -77,10 +77,16 @@ def main(args):
                           char_vectors=char_vectors,
                           hidden_size=args.hidden_size,
                           params=get_params(model_type, args.params))
+
     elif model_type == 'BiDAFbase':
-        model = BiDAFbase(word_vectors=word_vectors, #char_vectors=char_vectors,
-                      hidden_size=args.hidden_size,
-                      drop_prob=args.drop_prob)
+        model = BiDAFbase(word_vectors=word_vectors, hidden_size=args.hidden_size, drop_prob=args.drop_prob)
+
+    elif model_type == "Transformer":
+        model = TransformerModel(word_vectors=word_vectors,
+                                 char_vectors=char_vectors,
+                                 input_size=len(word_vectors),
+                                 hidden_size=args.hidden_size)
+    
     elif model_type == 'BiDAF':
         model = BiDAF(word_vectors=word_vectors,
                       char_vectors=char_vectors,

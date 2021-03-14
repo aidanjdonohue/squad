@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .encoder import HighwayEncoder
+from math import log
 
 
 
@@ -181,6 +182,7 @@ class CharEmbedding(nn.Module):
         # N, Cout, len(filter_heights)
         return x
 
+
 class defEmbedding(nn.Module):
     """Embedding layer used by BiDAF, without the character-level component.
 
@@ -209,15 +211,35 @@ class defEmbedding(nn.Module):
         return emb
 
 
+
+# https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+
 class PositionEmbedding(nn.Module):
-    '''
+    def __init__(self, embd_size, drop_prob=0.1, max_len=5000):
+        super(PositionEmbedding, self).__init__()
+        self.dropout = nn.Dropout(drop_prob)
+        pe = torch.zeros(max_len, embd_size)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, embd_size, 2).float() * (-log(10000.0) / embd_size))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
+
+''' Old Position Embedding draft
+class PositionEmbedding(nn.Module):
+    
     Section 3.5
     PE(pos,2i) = sin(pos/10000^(2i/hidden_size))
     PE(pos,2i+1) = cos(pos/10000^(2i/hidden_size))
     pos = position and i = dimension
      In : (hidden_size, drop_probability)
      Out: (N, sentence_len, c_embd_size)
-     '''
+    
     def __init__(self, word_vectors, hidden_size, drop_prob=0.2):
         super(PositionEmbedding, self).__init__()
         
@@ -250,3 +272,4 @@ class PositionEmbedding(nn.Module):
         #Can I loop trhough words at this point or wouold I need to modify setup.py
         
         return x
+'''

@@ -21,7 +21,7 @@ import util
 from args import get_test_args
 from collections import OrderedDict
 from json import dumps
-from models import BiDAF, BiDAFplus
+from models import BiDAF, BiDAFplus, TransformerModel
 from os.path import join
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
