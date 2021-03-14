@@ -73,6 +73,13 @@ master = {
                     encoder_layer={'rnn': 'gru'},
                     modeling_layer={'rnn': 'gru'}
                 )
+    },
+    'BiDAFplus' : {
+        'default' : BiDAFModelParameters(),
+        'gru' : BiDAFModelParameters(
+                    encoder_layer={'rnn': 'gru'},
+                    modeling_layer={'rnn': 'gru'}
+                )
     }
 }
 '''
