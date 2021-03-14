@@ -67,6 +67,8 @@ def main(args):
                       char_vectors=char_vectors,
                       hidden_size=args.hidden_size,
                       params=get_params(model_type, args.params))
+
+
     model = nn.DataParallel(model, gpu_ids)
     log.info(f'Loading checkpoint from {args.load_path}...')
     model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
@@ -102,7 +104,7 @@ def main(args):
                 cc_idxs = cc_idxs.to(device)
                 qc_idxs = qc_idxs.to(device)
 
-                log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                log_p1, log_p2 = model(cc_idxs, qc_idxs, cw_idxs, qw_idxs)
 
             # Forward
             else:
