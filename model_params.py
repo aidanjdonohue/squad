@@ -46,6 +46,8 @@ class BiDAFModelParameters():
             'hidden_size': self.d, # maybe 2*self.hidden_size
         }
 
+        self.filters = [] #For char embeddings idk what this actually does
+
         if embedding_layer is not None:
             self.embedding_layer.update(embedding_layer)
 
@@ -69,10 +71,20 @@ master = {
         'gru'     : BiDAFModelParameters(
                     encoder_layer={'rnn': 'gru'},
                     modeling_layer={'rnn': 'gru'}
+
                     )
         'big_lstm': BiDAFModelParameters(
                 embedding_layer={'hwy_layers': 3}
             )
+
+               
+    },
+    'BiDAFplus' : {
+        'default' : BiDAFModelParameters(),
+        'gru' : BiDAFModelParameters(
+                    encoder_layer={'rnn': 'gru'},
+                    modeling_layer={'rnn': 'gru'}
+                )
     }
 }
 '''

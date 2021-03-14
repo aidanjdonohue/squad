@@ -195,6 +195,18 @@ def get_test_args():
                         type=str,
                         default='submission.csv',
                         help='Name for submission file.')
+                    
+    parser.add_argument('--model',
+                        type=str,
+                        default='BiDAF',
+                        choices=('BiDAF', 'BiDAFbase', 'BiDAFplus', 'Transformer'),
+                        help='Select model name [BiDAF, BiDAFbase, BiDAFplus, Transformer].')
+
+    parser.add_argument('--params',
+                        type=str,
+                        default='default',
+                        choices=('default'),
+                        help='Name of the model params dict')
 
     # Require load_path for test.py
     args = parser.parse_args()

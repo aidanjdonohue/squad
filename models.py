@@ -6,7 +6,7 @@ Author:
 
 import layers.encoder as encoder
 import layers.embedding as embedding
-import layer.transformer as transformer
+import layers.transformer as transformer
 import layers.bidaf as bidaf
 import torch
 import torch.nn as nn
@@ -146,24 +146,24 @@ class BiDAFplus(nn.Module):
 
         self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
                                                  hidden_size=hidden_size,
-                                                 drop_prob=params['drop_prob'])
+                                                 drop_prob=params.drop_prob)#['drop_prob'])
 
 
         self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors,
-                                                 drop_prob=params['drop_prob'],
-                                                 filters=params['filters'],
-                                                 out_channels=params['out_channels']
-                                                 )
+                                                 drop_prob=params.drop_prob)#,#['drop_prob'],
+                                                 #filters=params.filters,#['filters'],
+                                                 #out_channels=params.out_channels#['out_channels']
+                                                 #)
 
         # input size = CharEmbedding Size
 
         self.d = 2 * hidden_size # char_embedding_size + word_embedding_size
 
-        self.hwy = encoder.HighwayEncoder(params['hwy_layers'], self.d)
+        self.hwy = encoder.HighwayEncoder(2, self.d)#params.hwy_layers, self.d)
 
         
         # select the phrase encoder
-        self.phrase_encoder = params['phrase_encoder']
+        self.phrase_encoder = "lstm"#params.phrase_encoder#['phrase_encoder']
 
         if self.phrase_encoder == 'lstm':
             encoder_fn = encoder.LSTMEncoder
@@ -172,22 +172,22 @@ class BiDAFplus(nn.Module):
 
         self.enc = encoder_fn(input_size=self.d,
                               hidden_size=self.d, #self.d,
-                              num_layers=params['encoder_layers'],
-                              drop_prob=params['drop_prob'])
+                              num_layers=params.encoder_layer["layers"],#['encoder_layers'],
+                              drop_prob=params.drop_prob)#['drop_prob'])
         
 
 
 
         self.att = bidaf.BiDAFAttention(hidden_size=2*self.d,
-                                        drop_prob=params['drop_prob'])
+                                        drop_prob=params.drop_prob)#['drop_prob'])
 
         self.mod = encoder.LSTMEncoder(input_size=8 * self.d,
                                       hidden_size=self.d,
-                                      num_layers=params['model_layers'],
-                                      drop_prob=params['drop_prob'])
+                                      num_layers=params.modeling_layer["layers"],#['model_layers'],
+                                      drop_prob=params.drop_prob)#['drop_prob'])
 
         self.out = bidaf.BiDAFOutput(hidden_size=self.d,
-                                     drop_prob=params['drop_prob'])
+                                     drop_prob=params.drop_prob)# ['drop_prob'])
 
     def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
 
