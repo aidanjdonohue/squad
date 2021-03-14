@@ -27,6 +27,7 @@ from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from ujson import load as json_load
 from util import collate_fn, SQuAD
+from model_params import get_params
 
 #useCharEmbeddings = True
 
