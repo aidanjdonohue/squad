@@ -105,12 +105,12 @@ class CharEmbedding(nn.Module):
 
 # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
 class PositionEmbedding(nn.Module):
-    def __init__(self, d_model, drop_prob=0.1, max_len=5000):
+    def __init__(self, embd_size, drop_prob=0.1, max_len=5000):
         super(PositionEmbedding, self).__init__()
         self.dropout = nn.Dropout(drop_prob)
-        pe = torch.zeros(max_len, d_model)
+        pe = torch.zeros(max_len, embd_size)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-log(10000.0) / d_model))
+        div_term = torch.exp(torch.arange(0, embd_size, 2).float() * (-log(10000.0) / embd_size))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0).transpose(0, 1)
