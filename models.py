@@ -35,7 +35,7 @@ class SelfAttModel(nn.Module):
         #self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
         #                                 drop_prob=drop_prob)
 
-        #self.mod = encoder.RNNEncoder(input_size=8 * hidden_size,
+        #self.mod = encoder.LSTMEncoder(input_size=8 * hidden_size,
         #                             hidden_size=hidden_size,
         #                             num_layers=2,
         #                             drop_prob=drop_prob)
@@ -76,17 +76,17 @@ class SelfAttModel(nn.Module):
 
 
     # ctx_w, ctx_c, query_w, query_c
-    def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
-        cw_mask = torch.zeros_like(cw_idxs) != cw_idxs
-        qw_mask = torch.zeros_like(qw_idxs) != qw_idxs
+    def forward(self, ctx_w_idx, query_w_idxs, ctx_char_idxs, query_char_idxs):
+        cw_mask = torch.zeros_like(ctx_w_idx) != ctx_w_idx
+        qw_mask = torch.zeros_like(query_w_idxs) != query_w_idxs
         cw_len, qw_len = cw_mask.sum(-1), qw_mask.sum(-1)
 
-        cc_mask = torch.zeros_like(cc_idxs) != cc_idxs
-        qc_mask = torch.zeros_like(qc_idxs) != qc_idxs
+        cc_mask = torch.zeros_like(ctx_char_idxs) != ctx_char_idxs
+        qc_mask = torch.zeros_like(query_char_idxs) != query_char_idxs
         cc_len, qc_len = cc_mask.sum(-1), qc_mask.sum(-1)
      
-        c_enc = self.build_contextual_encoding(cw_idxs, cc_idxs, cw_len, cc_len)
-        q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_len, qc_len)
+        c_enc = self.build_contextual_encoding(ctx_w_idx, ctx_char_idxs, cw_len, cc_len)
+        q_enc = self.build_contextual_encoding(query_w_idxs, query_char_idxs, qw_len, qc_len)
 
         # hs = 2x
         #print(f'context_encoder {c_enc.shape}')
@@ -137,12 +137,12 @@ class BiDAFplus(nn.Module):
         self.phrase_encoder = params['phrase_encoder']
 
         if self.phrase_encoder == 'lstm':
-            encoder_fn = encoder.RNNEncoder
+            encoder_fn = encoder.LSTMEncoder
         elif self.phrase_encoder == 'gru':
             encoder_fn = encoder.GRUEncoder
 
         self.enc = encoder_fn(input_size=self.d,
-                              hidden_size=self.d,
+                              hidden_size=self.d, #self.d,
                               num_layers=params['encoder_layers'],
                               drop_prob=params['drop_prob'])
         
@@ -152,7 +152,7 @@ class BiDAFplus(nn.Module):
         self.att = bidaf.BiDAFAttention(hidden_size=2*self.d,
                                         drop_prob=params['drop_prob'])
 
-        self.mod = encoder.RNNEncoder(input_size=8 * self.d,
+        self.mod = encoder.LSTMEncoder(input_size=8 * self.d,
                                       hidden_size=self.d,
                                       num_layers=params['model_layers'],
                                       drop_prob=params['drop_prob'])
@@ -167,10 +167,13 @@ class BiDAFplus(nn.Module):
 
         word_embd = self.word_embd(x_w)
 
+        '''
+
         print("{:<6} {:<32} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.1', 'Char Embedding Layer',
                                                       'N', 'seq_len', 'embd_size', *char_embd.shape))
         print("{:<6} {:<32} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.2', 'Word Embedding Layer',
                                                       'N', 'seq_len', 'embd_size', *word_embd.shape))
+        '''
         #print(f'char_embd shape{char_embd.shape}')
         #print(f'word_embd shape{word_embd.shape}')
 
@@ -184,9 +187,10 @@ class BiDAFplus(nn.Module):
         #print(f'hwy_embd shape {embd.shape}')
         lens = w_len #+ c_len
         #print(f'lens: {w_len} c_len: {c_len}')
+        '''
         print("{:<6} {:<32} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.2b', 'Highway Out',
                                                       'N', 'seq_len', 'd', *embd.shape))
-
+        '''
         if self.phrase_encoder == 'lstm':
             encoding = self.enc(embd, lens)
 
@@ -204,25 +208,29 @@ class BiDAFplus(nn.Module):
 
 
     # ctx_w, ctx_c, query_w, query_c
-    def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
+    def forward(self, ctx_w_idx, query_w_idxs, ctx_char_idxs, query_char_idxs):
         print(f'd={self.d}')
-        print(f'Context sequence Length: T={cw_idxs.size(1)}')
-        print(f'Query sequence Length: J={qw_idxs.size(1)}')
-        cw_mask = torch.zeros_like(cw_idxs) != cw_idxs
-        qw_mask = torch.zeros_like(qw_idxs) != qw_idxs
+        print(f'Context sequence Length: T={ctx_w_idx.size(1)}')
+        print(f'Query sequence Length: J={query_w_idxs.size(1)}')
+        cw_mask = torch.zeros_like(ctx_w_idx) != ctx_w_idx
+        qw_mask = torch.zeros_like(query_w_idxs) != query_w_idxs
         cw_len, qw_len = cw_mask.sum(-1), qw_mask.sum(-1)
 
         #print(f'CW mask shape {cw_mask.shape}')
         #print(f'QW mask shape {qw_mask.shape}')
-        cc_mask = torch.zeros_like(cc_idxs) != cc_idxs
-        qc_mask = torch.zeros_like(qc_idxs) != qc_idxs
+        cc_mask = torch.zeros_like(ctx_char_idxs) != ctx_char_idxs
+        qc_mask = torch.zeros_like(query_char_idxs) != query_char_idxs
         cc_len, qc_len = cc_mask.sum(-1), qc_mask.sum(-1)
 
+        print(f'cw_len={cw_len}')
+        print(f'qw_len={qw_len}')
+        print(f'cc_len={cc_len}')
+        print(f'qc_len={qc_len}')
         #print(f'CC mask shape {cc_mask.shape}')
         #print(f'QC mask shape {qc_mask.shape}')
      
-        c_enc = self.build_contextual_encoding(cw_idxs, cc_idxs, cw_len, cc_len)
-        q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_len, qc_len)
+        c_enc = self.build_contextual_encoding(ctx_w_idx, ctx_char_idxs, cw_len, cc_len)
+        q_enc = self.build_contextual_encoding(query_w_idxs, query_char_idxs, qw_len, qc_len)
         print("{:<6} {:<48} ({:<6} {:<6} {:<6}) ({:<6} {:<6} {:<6})".format('.3a', 'Context Contextual Embedding Layer',
                                                       'N', 'T', '2d', *c_enc.shape))
 
@@ -246,7 +254,6 @@ class BiDAFplus(nn.Module):
 
         return out
 
-
 class BiDAF(nn.Module):
     """Baseline BiDAF model for SQuAD.
 
@@ -267,12 +274,119 @@ class BiDAF(nn.Module):
         hidden_size (int): Number of features in the hidden state at each layer.
         drop_prob (float): Dropout probability.
     """
-    def __init__(self, word_vectors, hidden_size, drop_prob=0.2):
+    def __init__(self, word_vectors, char_vectors, hidden_size, params):
         super(BiDAF, self).__init__()
 
+        self.hidden_size = hidden_size
+        self.drop_prob = params.drop_prob
+        self.params = params
+
+        self.d = hidden_size * 2
+        
+
+        # 1. Embedding layer
+        embd_params = self.params.embedding_layer
+        self.embd = embedding.Embedding(word_vectors=word_vectors,
+                                        char_vectors=char_vectors,
+                                        hidden_size=hidden_size,
+                                        drop_prob=self.drop_prob,
+                                        params=embd_params)
 
 
-        self.emb = embedding.Embedding(word_vectors=word_vectors,
+        # 2. Encoding layer
+        enc_params = self.params.encoder_layer
+
+        if enc_params['rnn'] == 'lstm':
+            rnn = encoder.LSTMEncoder
+        elif enc_params['rnn'] == 'GRU':
+            rnn = encoder.GRUEncoder
+        
+
+        self.enc = rnn(input_size=self.d,
+                       hidden_size=enc_params['hidden_size'], # self.d
+                       num_layers=enc_params['layers'], # 1
+                       drop_prob=self.drop_prob) # 
+
+
+        # 3. Attention layer
+        # maybe params?
+        self.att = bidaf.BiDAFAttention(hidden_size=2*self.d,
+                                        drop_prob=self.drop_prob / 2)
+
+        # 4. Modeling layer
+        mod_params = self.params.modeling_layer
+
+        if mod_params['rnn'] == 'lstm':
+            rnn = encoder.LSTMEncoder
+        elif mod_params['rnn'] == 'GRU':
+            rnn = encoder.GRUEncoder
+
+
+        self.mod = rnn(input_size=8*self.d,
+                       hidden_size=mod_params['hidden_size'], # hidden_size
+                       num_layers=mod_params['layers'], # 2
+                       drop_prob=self.drop_prob)
+
+        # 5. Output layer
+        self.out = bidaf.BiDAFOutput(hidden_size=self.d,
+                                     drop_prob=self.drop_prob)
+
+
+
+    def forward(self, ctx_char_idxs, query_char_idxs, ctx_word_idxs, query_word_idxs):
+        # masks
+        ctx_mask = torch.zeros_like(ctx_word_idxs) != ctx_word_idxs
+        query_mask = torch.zeros_like(query_word_idxs) != query_word_idxs
+        ctx_len, query_len = ctx_mask.sum(-1), query_mask.sum(-1)
+
+        # 1. Embedding layer
+        # context and query embeddings
+        ctx_emb = self.embd(ctx_char_idxs, ctx_word_idxs)
+        query_emb = self.embd(query_char_idxs, query_word_idxs)
+
+        # 2. encoding layer
+        ctx_enc = self.enc(ctx_emb, ctx_len)
+        query_enc = self.enc(query_emb, query_len)
+
+
+        # 3. Attention layer
+        att = self.att(ctx_enc, query_enc, ctx_mask, query_mask)
+
+        # 4. Modeling layer
+        mod = self.mod(att, ctx_len)
+
+        # 5. output layer
+        out = self.out(att, mod, ctx_mask)
+
+        return out
+
+
+class BiDAFbase(nn.Module):
+    """Baseline BiDAF model for SQuAD.
+
+    Based on the paper:
+    "Bidirectional Attention Flow for Machine Comprehension"
+    by Minjoon Seo, Aniruddha Kembhavi, Ali Farhadi, Hannaneh Hajishirzi
+    (https://arxiv.org/abs/1611.01603).
+
+    Follows a high-level structure commonly found in SQuAD models:
+        - Embedding layer: Embed word indices to get word vectors.
+        - Encoder layer: Encode the embedded sequence.
+        - Attention layer: Apply an attention mechanism to the encoded sequence.
+        - Model encoder layer: Encode the sequence again.
+        - Output layer: Simple layer (e.g., fc + softmax) to get final outputs.
+
+    Args:
+        word_vectors (torch.Tensor): Pre-trained word vectors.
+        hidden_size (int): Number of features in the hidden state at each layer.
+        drop_prob (float): Dropout probability.
+    """
+    def __init__(self, word_vectors, hidden_size, drop_prob=0.2):
+        super(BiDAFbase, self).__init__()
+
+
+
+        self.emb = embedding.defEmbedding(word_vectors=word_vectors,
                                        hidden_size=hidden_size,
                                        drop_prob=drop_prob)
 
@@ -305,13 +419,13 @@ class BiDAF(nn.Module):
 
 
 
-    def forward(self, cw_idxs, qw_idxs):
-        c_mask = torch.zeros_like(cw_idxs) != cw_idxs
-        q_mask = torch.zeros_like(qw_idxs) != qw_idxs
+    def forward(self, ctx_w_idx, query_w_idxs):
+        c_mask = torch.zeros_like(ctx_w_idx) != ctx_w_idx
+        q_mask = torch.zeros_like(query_w_idxs) != query_w_idxs
         c_len, q_len = c_mask.sum(-1), q_mask.sum(-1)
 
-        c_emb = self.emb(cw_idxs)         # (batch_size, c_len, hidden_size)
-        q_emb = self.emb(qw_idxs)         # (batch_size, q_len, hidden_size)
+        c_emb = self.emb(ctx_w_idx)         # (batch_size, c_len, hidden_size)
+        q_emb = self.emb(query_w_idxs)         # (batch_size, q_len, hidden_size)
 
 
         #lstm_start_time = datetime.now()

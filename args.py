@@ -137,8 +137,9 @@ def get_train_args():
 
     parser.add_argument('--model',
                         type=str,
-                        default='BiDAFplus',
-                        help='Select model name [BiDAF, BiDAFplus].')
+                        default='BiDAF',
+                        choices=('BiDAF', 'BiDAFbase', 'BiDAFplus', 'Transformer'),
+                        help='Select model name [BiDAF, BiDAFbase, BiDAFplus, Transformer].')
 
     parser.add_argument('--mode',
                         type=str,

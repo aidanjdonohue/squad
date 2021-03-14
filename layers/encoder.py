@@ -6,6 +6,9 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from layers.self_attention import SelfAttMultiHeadLayer
 
+
+
+
 class HighwayEncoder(nn.Module):
     """Encode an input sequence using a highway network.
 
@@ -91,7 +94,7 @@ class GRUEncoder(nn.Module):
         return x 
 
 
-class RNNEncoder(nn.Module):
+class LSTMEncoder(nn.Module):
     """General-purpose layer for encoding a sequence using a bidirectional RNN.
 
     Encoded output is the RNN's hidden state at each position, which
@@ -109,7 +112,7 @@ class RNNEncoder(nn.Module):
                  num_layers,
                  drop_prob=0.2):
 
-        super(RNNEncoder, self).__init__()
+        super(LSTMEncoder, self).__init__()
         self.drop_prob = drop_prob
         self.rnn = nn.LSTM(input_size, hidden_size, num_layers,
                            batch_first=True,

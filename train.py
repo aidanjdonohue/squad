@@ -67,22 +67,30 @@ def main(args):
     print(f'{args.word_emb_file}')
     word_vectors = util.torch_from_json(args.word_emb_file)
     char_vectors = util.torch_from_json(args.char_emb_file)
-    log.info(f'Loaded embeddings: {(datetime.now()-startime).seconds}')
+    if time_log > 0:
+        log.info(f'Loaded embeddings: {(datetime.now()-startime).seconds}')
     # load_char_vectors
     # Get model
     log.info('Building model...')
-    if model_type == 'BiDAFplus':
+    if model_type == 'BiDAFplus': #
         model = BiDAFplus(word_vectors=word_vectors,
                           char_vectors=char_vectors,
                           hidden_size=args.hidden_size,
                           params=get_params(model_type, args.params))
-    else:
-        model = BiDAF(word_vectors=word_vectors, #char_vectors=char_vectors,
+    elif model_type == 'BiDAFbase':
+        model = BiDAFbase(word_vectors=word_vectors, #char_vectors=char_vectors,
                       hidden_size=args.hidden_size,
                       drop_prob=args.drop_prob)
+    elif model_type == 'BiDAF':
+        model = BiDAF(word_vectors=word_vectors,
+                      char_vectors=char_vectors,
+                      hidden_size=args.hidden_size,
+                      params=get_params(model_type, args.params))
+
 
     model = nn.DataParallel(model, args.gpu_ids)
-    log.info(f'Built model: {(datetime.now()-startime).seconds}')
+    if time_log > 0:
+        log.info(f'Built model: {(datetime.now()-startime).seconds}')
     if args.load_path:
         log.info(f'Loading checkpoint from {args.load_path}...')
         model, step = util.load_model(model, args.load_path, args.gpu_ids)
@@ -167,14 +175,14 @@ def main(args):
                 optimizer.zero_grad()
 
                 
-                if model_type == 'BiDAFplus':
+                if model_type == 'BiDAF' or model_type == 'BiDAFplus':
                     cc_idxs = cc_idxs.to(device)
                     qc_idxs = qc_idxs.to(device)
 
-                    log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                    log_p1, log_p2 = model(cc_idxs, qc_idxs, cw_idxs, qw_idxs)
 
                 # Forward
-                else:
+                elif model_type == 'BiDAFbase':
                     log_p1, log_p2 = model(cw_idxs, qw_idxs)
 
 
@@ -276,13 +284,14 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             batch_size = cw_idxs.size(0)
 
             # Forward
-            if model_type == 'BiDAFplus':
-
-                qc_idxs = qc_idxs.to(device)
+            if model_type == 'BiDAF' or model_type == 'BiDAFplus':
                 cc_idxs = cc_idxs.to(device)
-                log_p1, log_p2 = model(cw_idxs, qw_idxs, cc_idxs, qc_idxs)
+                qc_idxs = qc_idxs.to(device)
 
-            else:
+                log_p1, log_p2 = model(cc_idxs, qc_idxs, cw_idxs, qw_idxs)
+
+            # Forward
+            elif model_type == 'BiDAFbase':
                 log_p1, log_p2 = model(cw_idxs, qw_idxs)
 
             y1, y2 = y1.to(device), y2.to(device)
