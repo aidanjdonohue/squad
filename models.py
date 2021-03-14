@@ -183,7 +183,7 @@ class BiDAFplus(nn.Module):
 
         self.mod = encoder.LSTMEncoder(input_size=8 * self.d,
                                       hidden_size=self.d,
-                                      num_layers=params.modeling_layer.layers,#['model_layers'],
+                                      num_layers=params.modeling_layer["layers"],#['model_layers'],
                                       drop_prob=params.drop_prob)#['drop_prob'])
 
         self.out = bidaf.BiDAFOutput(hidden_size=self.d,
