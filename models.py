@@ -6,7 +6,7 @@ Author:
 
 import layers.encoder as encoder
 import layers.embedding as embedding
-import layer.transformer as transformer
+import layers.transformer as transformer
 import layers.bidaf as bidaf
 import torch
 import torch.nn as nn
