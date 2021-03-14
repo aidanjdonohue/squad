@@ -163,7 +163,7 @@ class BiDAFplus(nn.Module):
 
         
         # select the phrase encoder
-        self.phrase_encoder = params.phrase_encoder#['phrase_encoder']
+        self.phrase_encoder = "lstm"#params.phrase_encoder#['phrase_encoder']
 
         if self.phrase_encoder == 'lstm':
             encoder_fn = encoder.LSTMEncoder
