@@ -150,10 +150,10 @@ class BiDAFplus(nn.Module):
 
 
         self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors,
-                                                 drop_prob=params.drop_prob,#['drop_prob'],
-                                                 filters=params.filters,#['filters'],
-                                                 out_channels=params.out_channels#['out_channels']
-                                                 )
+                                                 drop_prob=params.drop_prob)#,#['drop_prob'],
+                                                 #filters=params.filters,#['filters'],
+                                                 #out_channels=params.out_channels#['out_channels']
+                                                 #)
 
         # input size = CharEmbedding Size
 
