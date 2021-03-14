@@ -76,7 +76,7 @@ def main(args):
                           char_vectors=char_vectors,
                           hidden_size=args.hidden_size,
                           params=get_params(model_type, args.params))
-    elif model_type.lower == "transformer":
+    elif model_type.lower() == "transformer":
         model = TransformerModel(word_vectors=word_vectors,
                                  char_vectors=char_vectors,
                                  input_size=len(word_vectors),
