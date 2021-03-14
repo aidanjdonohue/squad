@@ -46,13 +46,26 @@ def main(args):
     # char_vectors = load_char_vectors
     # Get model
     log.info('Building model...')
-    if model_type == 'BiDAFplus':
-        model = BiDAFpluslus(word_vectors=word_vectors,
+    if model_type == 'BiDAFplus': #
+        model = BiDAFplus(word_vectors=word_vectors,
+                          char_vectors=char_vectors,
+                          hidden_size=args.hidden_size,
+                          params=get_params(model_type, args.params))
+
+    elif model_type == 'BiDAFbase':
+        model = BiDAFbase(word_vectors=word_vectors, hidden_size=args.hidden_size, drop_prob=args.drop_prob)
+
+    elif model_type == "Transformer":
+        model = TransformerModel(word_vectors=word_vectors,
+                                 char_vectors=char_vectors,
+                                 input_size=len(word_vectors),
+                                 hidden_size=args.hidden_size)
+    
+    elif model_type == 'BiDAF':
+        model = BiDAF(word_vectors=word_vectors,
                       char_vectors=char_vectors,
-                      hidden_size=args.hidden_size)
-    else:
-        model = BiDAF(word_vectors=word_vectors, #char_vectors=char_vectors
-                      hidden_size=args.hidden_size)
+                      hidden_size=args.hidden_size,
+                      params=get_params(model_type, args.params))
     model = nn.DataParallel(model, gpu_ids)
     log.info(f'Loading checkpoint from {args.load_path}...')
     model = util.load_model(model, args.load_path, gpu_ids, return_step=False)
