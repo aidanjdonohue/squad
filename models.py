@@ -6,48 +6,60 @@ Author:
 
 import layers.encoder as encoder
 import layers.embedding as embedding
+import layer.transformer as transformer
 import layers.bidaf as bidaf
 import torch
 import torch.nn as nn
 
+#
+# Note couldn't get this to work using custom EncoderLayer and TransformerEncoderClass
+#from torch.nn import TransformerEncoder, TransformerEncoderLayer
+#  
 from math import sqrt
 from datetime import datetime
 
 
 class TransformerModel(nn.Module):
-    def __init__(self, word_vectors, char_vectors, input_size, hidden_size, num_heads=8, num_layers = 6, drop_prob=0.1):
+    def __init__(self, word_vectors, char_vectors, embd_size, hidden_size, num_heads=8, num_layers = 6, drop_prob=0.1):
         super(TransformerModel, self).__init__()
 
-        #from nn import TransformerEncoder, TransformerEncoderLayer
         self.model_type = "Transformer"
         self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
                                                 hidden_size=hidden_size,
                                                 drop_prob=drop_prob)
         self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors)
-        self.pos_embd = embedding.PositionEmbedding(d_model=input_size,
+        self.pos_embd = embedding.PositionEmbedding(embd_size=embd_size,
                                                     drop_prob=drop_prob)
-        encoder_layers = nn.TransformerEncoderLayer(input_size, num_heads, hidden_size, drop_prob)
-        self.enc = nn.TransformerEncoder(encoder_layers, num_layers)
-        self.input_size = input_size
-        self.decoder = nn.Linear(input_size, len(word_vectors))
+        
+        self.encoder = transformer.TransformerEncoder(embd_size=embd_size,
+                                                      num_layers=num_layers,
+                                                      num_heads=num_heads)
+        self.decoder = transformer.TransformerDecoder(embd_size=embd_size,
+                                                      num_layers=num_layers,
+                                                      num_heads=num_heads)
+        #self.out = nn.Linear(embd_size, trg_vocab)
+        #encoder_layers = nn.TransformerEncoderLayer(input_size, num_heads, hidden_size, drop_prob)
+        #self.enc = TransformerEncoder(encoder_layers, num_layers)
 
-    def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
+    def getEmbeddings(self, x_w, x_c):
+        char_embd = self.char_embd(x_c)
+        word_embd = self.word_embd(x_w)
+        pos_embd = self.pos_embd(x_c)
+
+        embd = torch.cat((char_embd, word_embd), 2)
+        return embd
+
+    '''def build_contextual_encoding(self, x_w, x_c, mask):#w_len, c_len):
         char_embd = self.char_embd(x_c)
         word_embd = self.word_embd(x_w)
         pos_embd = self.pos_embd(x_c)
 
         embd = torch.cat((char_embd, word_embd), 2)
         # TODO concatenate pos_embd as well
-        #embd = self.hwy(embd) - Not sure if we need highway network for transformer
+        # TODO embd = self.hwy(embd) - Not sure if we need highway network for transformer
 
-        #print(f'hwy_embd shape {embd.shape}')
-        lens = w_len #+ c_len
-        #print(f'lens: {w_len} c_len: {c_len}')
-
-        encoding = self.enc(embd, lens)
-        
+        encoding = self.encoder(embd, mask)
         return encoding
-
     #https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     def generate_square_subsequent_mask(self, sz):
         mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
@@ -59,7 +71,7 @@ class TransformerModel(nn.Module):
         initrange = 0.1
         self.encoder.weight.data.uniform_(-initrange, initrange)
         self.decoder.bias.data.zero_()
-        self.decoder.weight.data.uniform_(-initrange, initrange)
+        self.decoder.weight.data.uniform_(-initrange, initrange)'''
 
     def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
         cw_mask = torch.zeros_like(cw_idxs) != cw_idxs
@@ -70,13 +82,21 @@ class TransformerModel(nn.Module):
         qc_mask = torch.zeros_like(qc_idxs) != qc_idxs
         cc_len, qc_len = cc_mask.sum(-1), qc_mask.sum(-1)
      
-        c_enc = self.build_contextual_encoding(cw_idxs, cc_idxs, cw_len, cc_len)
-        q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_len, qc_len)
+        c_emb = self.getEmbeddings(cw_idxs, cc_idxs) #, cw_mask)
+        q_emb =  self.getEmbeddings(qw_idxs, qc_idxs) #, qw_mask)
 
-        att = self.att(c_enc, q_enc, cw_mask, qw_mask)    # (batch_size, c_len, 8 * hidden_size)        
-        mod = self.mod(att, cw_len)                       # (batch_size, c_len, 2 * hidden_size)
-        out = self.out(att, mod, cw_mask)                 # 2 tensors, each (batch_size, c_len)
+        #c_enc = self.build_contextual_encoding(cw_idxs, cc_idxs, cw_mask)#cw_len, cc_len)
+        #q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_mask)#qw_len, qc_len)
 
+        c_enc = self.encoder(c_emb, cw_mask)
+        q_enc = self.encoder(q_emb, qw_mask)
+
+        #TODO go from context and query encoding to output
+        c_dec = self.decoder(x=c_emb, encoder_outputs=c_enc, src_mask=cw_mask, trg_mask=cw_mask)
+        q_dec = self.decoder(x=q_emb, encoder_outputs=q_enc, src_mask=qw_mask, trg_mask=qw_mask)
+
+        #out = self.out(att, mod, cw_mask)                 # 2 tensors, each (batch_size, c_len)
+        out = []
         return out
 
 class BiDAFplus(nn.Module):
