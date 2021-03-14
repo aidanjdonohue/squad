@@ -7,8 +7,6 @@ params = master[model_name][param_config_name]
 '''
 
 
-
-
 class BiDAFModelParameters():
     def __init__(self, hidden_size=100, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
 
@@ -23,7 +21,6 @@ class BiDAFModelParameters():
             'char_embedder': 'cnn',
             'kernel_size': (1,5),
         }
-
 
         self.encoder_layer = {
             'rnn': 'lstm',
@@ -69,10 +66,13 @@ class BiDAFModelParameters():
 master = {
     'BiDAF' : {
         'default' : BiDAFModelParameters(),
-        'gru' : BiDAFModelParameters(
+        'gru'     : BiDAFModelParameters(
                     encoder_layer={'rnn': 'gru'},
                     modeling_layer={'rnn': 'gru'}
-                )
+                    )
+        'big_lstm': BiDAFModelParameters(
+                embedding_layer={'hwy_layers': 3}
+            )
     }
 }
 '''
