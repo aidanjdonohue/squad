@@ -159,7 +159,7 @@ class BiDAFplus(nn.Module):
 
         self.d = 2 * hidden_size # char_embedding_size + word_embedding_size
 
-        self.hwy = encoder.HighwayEncoder(params.hwy_layers, self.d)
+        self.hwy = encoder.HighwayEncoder(2, self.d)#params.hwy_layers, self.d)
 
         
         # select the phrase encoder
