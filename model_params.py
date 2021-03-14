@@ -72,7 +72,7 @@ master = {
                     encoder_layer={'rnn': 'gru'},
                     modeling_layer={'rnn': 'gru'}
 
-                    )
+                    ),
         'big_lstm': BiDAFModelParameters(
                 embedding_layer={'hwy_layers': 3}
             )

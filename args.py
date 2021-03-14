@@ -154,7 +154,7 @@ def get_train_args():
     parser.add_argument('--params',
                         type=str,
                         default='default',
-                        choices=('default'),
+                        choices=('default', 'big_lstm'),
                         help='Name of the model params dict')
 
 
