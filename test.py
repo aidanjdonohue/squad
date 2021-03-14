@@ -98,7 +98,7 @@ def main(args):
             cw_idxs = cw_idxs.to(device)
             qw_idxs = qw_idxs.to(device)
             batch_size = cw_idxs.size(0)
-            if model_type == 'BiDAFplus' or model_type == 'BiDAFplus':
+            if model_type == 'BiDAF' or model_type == 'BiDAFplus':
                 cc_idxs = cc_idxs.to(device)
                 qc_idxs = qc_idxs.to(device)
 
