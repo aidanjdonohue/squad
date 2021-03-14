@@ -172,7 +172,7 @@ class BiDAFplus(nn.Module):
 
         self.enc = encoder_fn(input_size=self.d,
                               hidden_size=self.d, #self.d,
-                              num_layers=params.encoder_layer.layers,#['encoder_layers'],
+                              num_layers=params.encoder_layer["layers"],#['encoder_layers'],
                               drop_prob=params.drop_prob)#['drop_prob'])
         
 
