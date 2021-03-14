@@ -202,6 +202,12 @@ def get_test_args():
                         choices=('BiDAF', 'BiDAFbase', 'BiDAFplus', 'Transformer'),
                         help='Select model name [BiDAF, BiDAFbase, BiDAFplus, Transformer].')
 
+    parser.add_argument('--params',
+                        type=str,
+                        default='default',
+                        choices=('default'),
+                        help='Name of the model params dict')
+
     # Require load_path for test.py
     args = parser.parse_args()
     if not args.load_path:
