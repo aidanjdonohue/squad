@@ -8,13 +8,13 @@ params = master[model_name][param_config_name]
 
 
 class BiDAFModelParameters():
-    def __init__(self, hidden_size=100, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
+    def __init__(self, hidden_size=100, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
 
         # defaults
         self.hidden_size = hidden_size
         self.drop_prob = drop_prob
         
-        self.d = hidden_size * 2
+        self.d = hidden_size * d_size
 
         self.embedding_layer = {
             'hwy_layers': 2,
