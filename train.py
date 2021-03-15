@@ -219,8 +219,8 @@ def main(args):
                                optimizer.param_groups[0]['lr'],
                                step)
 
-                #if time_log > 0:
-                    #enditertime = datetime.now()
+                if time_log > 0:
+                    enditertime = datetime.now()
                     #log.info('Iteration {} {}:{}'.format(total_iterations, 
                     #    *divmod((enditertime-itertime).seconds, 60)))
 
