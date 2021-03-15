@@ -7,10 +7,12 @@ params = master[model_name][param_config_name]
 '''
 
 
+
 class BiDAFModelParameters():
-    def __init__(self, hidden_size=100, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
+    def __init__(self, name, hidden_size=100, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
 
         # defaults
+        self.name = name
         self.hidden_size = hidden_size
         self.drop_prob = drop_prob
         
@@ -64,16 +66,36 @@ class BiDAFModelParameters():
             self.output_layer.update(output_layer)
 
 
+
+    def __str__(self):
+
+
+        string = \
+        f"Param name  : {self.name}\n" +
+        f"hidden_size : {self.hidden_size}\n" +
+        f"drop_prob   : {self.drop_prob}\n" +
+        f'embedding_layer\n' + 
+        str(self.embedding_layer)  + '\n' +
+        f'encoder_layer\n' + 
+        str(self.encoder_layer)  + '\n' +
+        f'attention_layer\n' + 
+        str(self.attention_layer)  + '\n' +
+        f'modeling_layer\n' + 
+        str(self.modeling_layer)  + '\n' +
+        f'output_layer\n' + 
+        str(self.output_layer)
+
+        return string
         
 master = {
     'BiDAF' : {
-        'default' : BiDAFModelParameters(),
-        'gru'     : BiDAFModelParameters(
+        'default' : BiDAFModelParameters('default'),
+        'gru'     : BiDAFModelParameters('gru',
                     encoder_layer={'rnn': 'gru'},
                     modeling_layer={'rnn': 'gru'}
 
                     ),
-        'big_lstm': BiDAFModelParameters(
+        'big_lstm': BiDAFModelParameters('big_lstm,'
                 encoder_layer={'layers': 2},
                 modeling_layer={'layers': 3},
             )
@@ -139,6 +161,11 @@ master = {
 
 def get_params(model_name, name='default'):
 
-
-    return master[model_name][name]
+    params = master[model_name][name]
+    print("="*20)
+    print("Model Params")
+    print("-"*20)
+    print(str(params))
+    print("="*20)
+    return params
 
