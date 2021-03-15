@@ -71,18 +71,18 @@ class BiDAFModelParameters():
 
 
         string = \
-        f"Param name  : {self.name}\n" +
-        f"hidden_size : {self.hidden_size}\n" +
-        f"drop_prob   : {self.drop_prob}\n" +
-        f'embedding_layer\n' + 
-        str(self.embedding_layer)  + '\n' +
-        f'encoder_layer\n' + 
-        str(self.encoder_layer)  + '\n' +
-        f'attention_layer\n' + 
-        str(self.attention_layer)  + '\n' +
-        f'modeling_layer\n' + 
-        str(self.modeling_layer)  + '\n' +
-        f'output_layer\n' + 
+        f"Param name  : {self.name}\n" +\
+        f"hidden_size : {self.hidden_size}\n" +\
+        f"drop_prob   : {self.drop_prob}\n" +\
+        f'embedding_layer\n' + \
+        str(self.embedding_layer)  + '\n' +\
+        f'encoder_layer\n' + \
+        str(self.encoder_layer)  + '\n' +\
+        f'attention_layer\n' + \
+        str(self.attention_layer)  + '\n' +\
+        f'modeling_layer\n' + \
+        str(self.modeling_layer)  + '\n' +\
+        f'output_layer\n' + \
         str(self.output_layer)
 
         return string
@@ -95,7 +95,7 @@ master = {
                     modeling_layer={'rnn': 'gru'}
 
                     ),
-        'big_lstm': BiDAFModelParameters('big_lstm,'
+        'big_lstm': BiDAFModelParameters('big_lstm',
                 encoder_layer={'layers': 2},
                 modeling_layer={'layers': 3},
             )
@@ -103,8 +103,8 @@ master = {
                
     },
     'BiDAFplus' : {
-        'default' : BiDAFModelParameters(),
-        'gru' : BiDAFModelParameters(
+        'default' : BiDAFModelParameters('default'),
+        'gru' : BiDAFModelParameters('gru',
                     encoder_layer={'rnn': 'gru'},
                     modeling_layer={'rnn': 'gru'}
                 )
