@@ -74,7 +74,6 @@ master = {
 
                     ),
         'big_lstm': BiDAFModelParameters(
-                d_size=2.56,
                 encoder_layer={'layers': 2},
                 modeling_layer={'layers': 3},
             )
