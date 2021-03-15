@@ -205,7 +205,7 @@ def get_test_args():
     parser.add_argument('--params',
                         type=str,
                         default='default',
-                        choices=('default'),
+                        choices=('default', 'big_lstm'),
                         help='Name of the model params dict')
 
     # Require load_path for test.py
