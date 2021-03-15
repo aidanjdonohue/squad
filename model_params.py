@@ -14,7 +14,7 @@ class BiDAFModelParameters():
         self.hidden_size = hidden_size
         self.drop_prob = drop_prob
         
-        self.d = hidden_size * d_size
+        self.d = int(hidden_size * d_size)
 
         self.embedding_layer = {
             'hwy_layers': 2,
@@ -74,7 +74,9 @@ master = {
 
                     ),
         'big_lstm': BiDAFModelParameters(
-                embedding_layer={'hwy_layers': 3}
+                d_size=2.56,
+                encoder_layer={'layers': 2},
+                modeling_layer={'layers': 3},
             )
 
                
