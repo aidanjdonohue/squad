@@ -95,7 +95,7 @@ master = {
                     modeling_layer={'rnn': 'gru'}
 
                     ),
-        'big_lstm': BiDAFModelParameters('big_lstm,'
+        'big_lstm': BiDAFModelParameters('big_lstm',
                 encoder_layer={'layers': 2},
                 modeling_layer={'layers': 3},
             )
