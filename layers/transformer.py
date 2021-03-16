@@ -44,17 +44,17 @@ class MultiHeadAttention(nn.Module):
         #self.register_buffer("mask", torch.tril(torch.ones(block_size, block_size))
         #                             .view(1, 1, block_size, block_size))
 
-    def forward(self, x, layer_past=None):
+    def forward(self, x, mask=none, layer_past=None):
         B, T, C = x.size()
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        q = self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        k = self.key(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2) # (B, nh, T, hs)
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(k.size(-1)))
-        att = att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
+        att = att.masked_fill(mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
         att = F.softmax(att, dim=-1)
 
         att = self.attn_drop_prob(att)
@@ -95,6 +95,12 @@ class TransformerEncoder(nn.Module):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
     
     # Apply each attention layer
+
+    #def forward(self, x):
+    #    for i in range(self.num_layers):
+    #        x = self.layers[i](x)
+    #    return self.norm(x)
+
     # TODO not sure how mask comes into play, we're already using masking for embeddings so maybe that will do
     def forward(self, x, mask):
         for i in range(self.num_layers):
@@ -110,20 +116,26 @@ class TransformerEncoderLayer(nn.Module):
         - FeedForward Sublayer
     The forward function applies each sublayer with a dropout for each layer
     '''
-    def __init__(self, d_model, num_heads, dropout = 0.1):
+    def __init__(self, d_model, num_heads, dropout = 0.1, norm=None):
         super().__init__()
-        self.norm_1 = Norm(d_model)
-        self.norm_2 = Norm(d_model)
+        self.norm = norm
+        #self.norm_1 = norm
+        #self.norm_2 = norm
         self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
         self.ff = FeedForward(d_model)
-        self.dropout_1 = nn.Dropout(dropout)
-        self.dropout_2 = nn.Dropout(dropout)
+        
+        self.dropout = nn.Dropout(dropout)
+        #self.dropout_1 = nn.Dropout(dropout)
+        #self.dropout_2 = nn.Dropout(dropout)
+
+    def normalize(self, x):
+        return self.norm(x) if self.norm is not None else x
 
     def forward(self, x, mask):
-        x2 = self.norm_1(x)
-        x = x + self.dropout_1(self.attn(x2,x2,x2,mask))
-        x2 = self.norm_2(x)
-        x = x + self.dropout_2(self.ff(x2))
+        x = self.normalize(x)
+        x = x + self.dropout(self.attn(x, mask))
+        x = self.normalize(x)
+        x = x + self.dropout(self.attn(x))
         return x
 
 class TransformerDecoder(nn.Module):

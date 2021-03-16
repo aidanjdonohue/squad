@@ -33,19 +33,22 @@ class TransformerModel(nn.Module):
         embd_params = self.params.embedding_layer
         self.embd = embedding.Embedding(word_vectors=word_vectors,
                                         char_vectors=char_vectors,
-                                        hidden_size=embd_params["hidden_size"],
+                                        hidden_size=self.hidden_size,
                                         drop_prob=self.drop_prob,
                                         params=embd_params)
 
         self.pos_enc = transformer.PositionalEncoding(d_model=self.d_model, 
                                                 drop_prob=self.drop_prob)
 
-
         # 2. Encoding layer
         enc_params = self.params.encoder_layer
+        norm = None
+        if enc_params["norm"] == True:
+            norm = transformer.Norm(self.d_model)
         self.enc = transformer.TransformerEncoder(d_model=self.d_model,
                                                   num_layers=enc_params["num_layers"],
                                                   num_heads=enc_params["num_heads"],
+                                                  norm=norm,
                                                   drop_prob=self.drop_prob)
 
         # 3. Attention layer
@@ -80,8 +83,8 @@ class TransformerModel(nn.Module):
         query_emb = self.pos_enc(query_emb)
 
         # 2. encoding layer
-        ctx_enc = self.enc(ctx_emb, ctx_len)
-        query_enc = self.enc(query_emb, query_len)
+        ctx_enc = self.enc(ctx_emb, ctx_mask)
+        query_enc = self.enc(query_emb, query_mask)
 
         print("Successful encoding")
 
