@@ -108,8 +108,9 @@ class TransformerModelParameters():
             "norm" : True
         }
 
+        # No impact rn
         self.attention_layer = {
-
+            "type" : "scaled_dot_product"
         }
 
         self.decoder_layer = {
