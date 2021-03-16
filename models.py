@@ -42,9 +42,10 @@ class TransformerModel(nn.Module):
 
 
         # 2. Encoding layer
+        enc_params = self.params.encoder_layer
         self.enc = transformer.TransformerEncoder(d_model=self.d_model,
-                                                  num_layers=self.params.num_layers,
-                                                  num_heads=self.params.num_heads,
+                                                  num_layers=enc_params["num_layers"],
+                                                  num_heads=enc_params["num_heads"],
                                                   drop_prob=self.drop_prob)
 
         # 3. Attention layer
