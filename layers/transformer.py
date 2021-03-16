@@ -138,11 +138,11 @@ class TransformerDecoder(nn.Module):
             - Must add another level of masking
             - Includes encoder_outputs as well as the emebeddings in the forward function
     '''
-    def __init__(self, embd_size, num_layers, num_heads):
+    def __init__(self, d_model, num_layers, num_heads):
         super().__init__()
         self.num_layers = num_layers
-        self.layers = self.get_clones(TransformerDecoderLayer(embd_size=embd_size, num_heads=num_heads), num_layers)
-        self.norm = Norm(embd_size)
+        self.layers = self.get_clones(TransformerDecoderLayer(d_model=d_model, num_heads=num_heads), num_layers)
+        self.norm = Norm(d_model)
 
     #Convenience function to allow us to generate num_layers identical copies of our encoder layer
     def get_clones(self, module, N):
@@ -164,11 +164,11 @@ class TransformerDecoderLayer(nn.Module):
 
     The forward function applies each sublayer with a dropout for each layer
     '''
-    def __init__(self, embd_size, num_heads, dropout = 0.1):
+    def __init__(self, d_model, num_heads, dropout = 0.1):
         super().__init__()
         self.norm_1 = Norm(embd_size)
         self.norm_2 = Norm(embd_size)
-        self.attn = MultiHeadAttention(embd_size=embd_size, num_heads=num_heads)
+        self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
         self.ff = FeedForward(embd_size)
         self.dropout_1 = nn.Dropout(dropout)
         self.dropout_2 = nn.Dropout(dropout)

@@ -26,6 +26,7 @@ class TransformerModel(nn.Module):
         self.model_type = "Transformer"
         self.params = params
         self.d_model = params.d
+        self.hidden_size = params.hidden_size
         self.drop_prob = params.drop_prob
 
         # 1. Embedding layer
@@ -46,15 +47,16 @@ class TransformerModel(nn.Module):
                                                   num_heads=self.params.num_heads,
                                                   drop_prob=self.drop_prob)
 
-        # 3. Encoding layer
-        self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
-                                        drop_prob=self.drop_prob)
+        # 3. Attention layer
+        #self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
+        #                                drop_prob=self.drop_prob)
 
         
-        self.decoder = transformer.TransformerDecoder(d_model=self.d_model,
-                                                      num_layers=self.params.num_layers,
-                                                      num_heads=self.params.num_heads,
-                                                      drop_prob=self.drop_prob)
+        # 3. Decoder layer
+        #self.decoder = transformer.TransformerDecoder(d_model=self.d_model,
+        #                                              num_layers=self.params.num_layers,
+        #                                              num_heads=self.params.num_heads,
+        #                                              drop_prob=self.drop_prob)
 
 
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
@@ -80,12 +82,14 @@ class TransformerModel(nn.Module):
         ctx_enc = self.enc(ctx_emb, ctx_len)
         query_enc = self.enc(query_emb, query_len)
 
+        print("Successful encoding")
+
         # 3. Attention layer
-        att = self.att(ctx_enc, query_enc, ctx_mask, query_mask)
+        #att = self.att(ctx_enc, query_enc, ctx_mask, query_mask)
 
         # 4. decoder layer
-        decoder = self.decoder(att, ctx_len)
-
+        #decoder = self.decoder(att, ctx_len)
+        out = []
         return out
 
 class BiDAFplus(nn.Module):
