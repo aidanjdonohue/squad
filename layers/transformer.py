@@ -54,7 +54,7 @@ class MultiHeadAttention(nn.Module):
 
         return att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
 
-    def forward(self, q, k, v, mask=None, layer_past=None):
+    def forward(self, q, k, v, mask=None):
         B, T = q.size(0), q.size(1)
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
