@@ -17,14 +17,14 @@ class MultiHeadAttention(nn.Module):
     is all but absent and code ugly so I don't trust it, rolling my own here.
     """
 
-    def __init__(self, embd_size, num_heads, attn_drop_prob=0.1, resid_drop_prop=0.1):
+    def __init__(self, d_model, num_heads, attn_drop_prob=0.1, resid_drop_prop=0.1):
         super().__init__()
         assert embd_size % num_heads == 0
 
         # key, query, value projections for all heads
-        self.key = nn.Linear(embd_size, embd_size)
-        self.query = nn.Linear(embd_size, embd_size)
-        self.value = nn.Linear(embd_size, embd_size)
+        self.key = nn.Linear(d_model, d_model)
+        self.query = nn.Linear(d_model, d_model)
+        self.value = nn.Linear(d_model, d_model)
 
         #TODO - Version from class uses two dropout layers, not sure if this should be changed or is necessary
         # regularization 
@@ -32,7 +32,7 @@ class MultiHeadAttention(nn.Module):
         self.resid_drop = nn.Dropout(resid_drop_prop)
 
         # output projection
-        self.proj = nn.Linear(embd_size, embd_size)
+        self.proj = nn.Linear(d_model, d_model)
 
         # Set Num Heads
         self.num_heads = num_heads
@@ -53,7 +53,7 @@ class MultiHeadAttention(nn.Module):
         v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+        att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(k.size(-1)))
         att = att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
         att = F.softmax(att, dim=-1)
 
@@ -84,11 +84,11 @@ class TransformerEncoder(nn.Module):
         Transformer encoder constructs num_layers identical TranformerEncoderLayers
         The forward function applies each layer to an input
     '''
-    def __init__(self, embd_size, num_layers, num_heads):
+    def __init__(self, d_model, num_layers, num_heads, drop_prob):
         super().__init__()
         self.num_layers = num_layers
-        self.layers = self.get_clones(TransformerEncoderLayer(embd_size=embd_size, num_heads=num_heads), num_layers)
-        self.norm = Norm(embd_size)
+        self.layers = self.get_clones(TransformerEncoderLayer(d_model=d_model, num_heads=num_heads), num_layers)
+        self.norm = Norm(d_model)
 
     #Convenience function to allow us to generate num_layers identical copies of our encoder layer
     def get_clones(self, module, N):
@@ -110,12 +110,12 @@ class TransformerEncoderLayer(nn.Module):
         - FeedForward Sublayer
     The forward function applies each sublayer with a dropout for each layer
     '''
-    def __init__(self, embd_size, num_heads, dropout = 0.1):
+    def __init__(self, d_model, num_heads, dropout = 0.1):
         super().__init__()
-        self.norm_1 = Norm(embd_size)
-        self.norm_2 = Norm(embd_size)
-        self.attn = MultiHeadAttention(embd_size=embd_size, num_heads=num_heads)
-        self.ff = FeedForward(embd_size)
+        self.norm_1 = Norm(d_model)
+        self.norm_2 = Norm(d_model)
+        self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
+        self.ff = FeedForward(d_model)
         self.dropout_1 = nn.Dropout(dropout)
         self.dropout_2 = nn.Dropout(dropout)
 

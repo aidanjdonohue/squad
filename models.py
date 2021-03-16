@@ -20,23 +20,32 @@ from datetime import datetime
 
 
 class TransformerModel(nn.Module):
-    def __init__(self, word_vectors, char_vectors, d_model, params, num_heads=8, num_layers = 6, drop_prob=0.1):
+    def __init__(self, word_vectors, char_vectors, params):
         super(TransformerModel, self).__init__()
 
         self.model_type = "Transformer"
         self.params = params
-        self.d_model = 2 * d_model
+        self.d_model = params.d_model
+        self.drop_prob = params.drop_prob
 
         # 1. Embedding layer
         embd_params = self.params.embedding_layer
         self.embd = embedding.Embedding(word_vectors=word_vectors,
                                         char_vectors=char_vectors,
-                                        hidden_size=d_model,
-                                        drop_prob=drop_prob,
+                                        hidden_size=self.d_model/2,
+                                        drop_prob=self.drop_prob,
                                         params=embd_params)
 
         self.pos_enc = transformer.PositionalEncoding(d_model=self.d_model, 
                                                 drop_prob=drop_prob)
+
+
+        # 2. Encoding layer
+        enc_params = self.params.encoder_layer
+        self.enc = transformer.TransformerEncoder(d_model=self.d_model,
+                                                  num_layers=enc_params["layers"],
+                                                  num_heads=enc_params["n_heads"],
+                                                  drop_prop=self.drop_prob)
 
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     #def generate_square_subsequent_mask(self, sz):
