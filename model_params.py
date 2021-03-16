@@ -44,7 +44,7 @@ class BiDAFModelParameters():
         # doesn't affect model yet
         self.output_layer = {
             'rnn': 'lstm',
-            'layers': 2,
+            'layers': 1,
             'hidden_size': self.d, # maybe 2*self.hidden_size
         }
 
