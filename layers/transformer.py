@@ -53,20 +53,39 @@ class MultiHeadAttention(nn.Module):
 
         return att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
 
-
-    def forward(self, x, mask=None, layer_past=None):
-        B, T, _ = x.size() # C = self.d_model
+    def forward(self, q, k, v, mask=None, layer_past=None):
+        B, T = q.size(0), q.size(1)
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        k = self.key(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
-        q = self.query(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
-        v = self.value(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        k = self.key(q).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(k).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(v).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
 
         y = self.scaledDotProductAttention(q, k, v, T, mask)
         y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
 
         # output projection
         return self.resid_dropout(self.proj(y))
+
+    '''
+    def forward(self, x, mask=None, layer_past=None):
+        B, T, _ = x.size() # C = self.d_model
+
+        print("B", B, "T", T, "x", x.size)
+
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        k = self.key(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+
+        print(q.shape, k.shape, v.shape)
+
+        y = self.scaledDotProductAttention(q, k, v, T, mask)
+        y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
+
+        # output projection
+        return self.resid_dropout(self.proj(y))
+    '''
 
 #https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#3fa3
 class FeedForward(nn.Module):
@@ -123,9 +142,9 @@ class TransformerEncoderLayer(nn.Module):
 
     def forward(self, x, mask):
         x = self.normalize(x)
-        x = x + self.dropout(self.attn(x, mask))
+        x = x + self.dropout(self.attn(x, x, x, mask)) #self attention k,q,v from same source
         x = self.normalize(x)
-        x = x + self.dropout(self.ff(x))
+        x = x + self.dropout(self.ff(x)) #apply feed forward
         return x
 
 class TransformerDecoder(nn.Module):
@@ -176,11 +195,16 @@ class TransformerDecoderLayer(nn.Module):
     def normalize(self, x):
         return self.norm(x) if self.norm is not None else x
 
-    def forward(self, x, mask):
+    #TODO still confused on src and target_mask
+    def forward(self, x, encoder_outputs, src_mask, trg_mask):
         x = self.normalize(x)
-        x = x + self.dropout(self.attn(x, mask))
+        x = x + self.dropout(self.attn(x, x, x, trg_mask)) #self attention k,q,v from same source
+
+        x = self.normalize(x) 
+        x = x + self.dropout(self.attn(x, encoder_outputs, encoder_outputs, src_mask)) #attention between embeddings and encoder outputs I think
+
         x = self.normalize(x)
-        x = x + self.dropout(self.ff(x))
+        x = x + self.dropout(self.ff(x)) #apply feed forward
         return x
 
     '''
