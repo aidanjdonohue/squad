@@ -6,8 +6,6 @@ import copy
 from math import sqrt, sin, cos
 from util import masked_softmax
 
-#from encoder import RNNEncoder
-
 
 #Modified version of multi-head self-attention from assign 5
 class MultiHeadAttention(nn.Module):
@@ -38,14 +36,17 @@ class MultiHeadAttention(nn.Module):
 
         # Set Num Heads
         self.num_heads = num_heads
-        
 
     def scaledDotProductAttention(self, q, k, v, T, mask=None, drop_prob=0.1):
         att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(self.d_k))
 
         if mask is not None:
+            pass
             #TODO apply mask
-            att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10) 
+            #att.masked_fill(mask[:,:,:T,:T] == 0, -1e10) 
+
+            #mask = mask.unsqueeze(1)
+            #att = att.masked_fill(mask == 0, -1e10)
 
         att = F.softmax(att, dim=-1)
         att = self.attn_dropout(att)
@@ -65,8 +66,7 @@ class MultiHeadAttention(nn.Module):
         y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
 
         # output projection
-        y = self.resid_dropout(self.proj(y))
-        return y
+        return self.resid_dropout(self.proj(y))
 
 #https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#3fa3
 class FeedForward(nn.Module):
