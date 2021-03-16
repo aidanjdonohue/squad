@@ -19,7 +19,7 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(self, d_model, num_heads, attn_drop_prob=0.1, resid_drop_prop=0.1):
         super().__init__()
-        assert embd_size % num_heads == 0
+        assert d_model % num_heads == 0
 
         # key, query, value projections for all heads
         self.key = nn.Linear(d_model, d_model)

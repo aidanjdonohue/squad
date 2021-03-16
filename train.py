@@ -84,7 +84,6 @@ def main(args):
     elif model_type == "Transformer":
         model = TransformerModel(word_vectors=word_vectors,
                                  char_vectors=char_vectors,
-                                 d_model=args.hidden_size,
                                  params=get_params(model_type, args.params))
     
     elif model_type == 'BiDAF':

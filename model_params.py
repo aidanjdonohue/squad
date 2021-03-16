@@ -88,46 +88,33 @@ class BiDAFModelParameters():
         return string
 
 class TransformerModelParameters():
-    def __init__(self, name, hidden_size=100, d_size=2, num_layers=6, num_heads=8, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
+    def __init__(self, name, hidden_size=100, d_size=2, num_layers=6, num_heads=8, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, decoder_layer=None):
 
         # defaults
         self.name = name
 
-        self.hidden_size = hidden_size
         self.d = int(hidden_size * d_size)
 
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.drop_prob = drop_prob
         
-        #self.d = int(hidden_size * d_size)
-
         self.embedding_layer = {
+            'hidden_size': hidden_size,
             'hwy_layers': 2,
             'char_embedder': 'cnn',
             'kernel_size': (1,5),
         }
 
         self.encoder_layer = {
-            'layers': 6
         }
-
 
         self.attention_layer = {
 
         }
 
-        self.modeling_layer = {
-            'rnn': 'lstm',
-            'layers': 2,
-            'hidden_size': self.d, # maybe 2*self.hidden_size
-        }
-
         # doesn't affect model yet
-        self.output_layer = {
-            'rnn': 'lstm',
-            'layers': 1,
-            'hidden_size': self.d, # maybe 2*self.hidden_size
+        self.decoder_layer = {
         }
 
         self.filters = [] #For char embeddings idk what this actually does
@@ -141,11 +128,8 @@ class TransformerModelParameters():
         if attention_layer is not None:
             self.attention_layer.update(attention_layer)
 
-        if modeling_layer is not None:
-            self.modeling_layer.update(modeling_layer)
-
-        if output_layer is not None:
-            self.output_layer.update(output_layer)
+        if decoder_layer is not None:
+            self.decoder_layer.update(decoder_layer)
 
 
 
@@ -154,7 +138,9 @@ class TransformerModelParameters():
 
         string = \
         f"Param name  : {self.name}\n" +\
-        f"hidden_size : {self.hidden_size}\n" +\
+        f"dimensions : {self.d}\n" +\
+        f"num_layers : {self.num_layers}\n" +\
+        f"num_layers : {self.num_heads}\n" +\
         f"drop_prob   : {self.drop_prob}\n" +\
         f'embedding_layer\n' + \
         str(self.embedding_layer)  + '\n' +\
@@ -162,10 +148,8 @@ class TransformerModelParameters():
         str(self.encoder_layer)  + '\n' +\
         f'attention_layer\n' + \
         str(self.attention_layer)  + '\n' +\
-        f'modeling_layer\n' + \
-        str(self.modeling_layer)  + '\n' +\
-        f'output_layer\n' + \
-        str(self.output_layer)
+        f'decoder_layer\n' + \
+        str(self.decoder_layer)
 
         return string
         
@@ -192,7 +176,7 @@ master = {
                 )
     },
     'Transformer' : {
-        'default' : BiDAFModelParameters('default')
+        'default' : TransformerModelParameters('default')
     }
 }
 '''

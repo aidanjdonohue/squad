@@ -32,7 +32,7 @@ class TransformerModel(nn.Module):
         embd_params = self.params.embedding_layer
         self.embd = embedding.Embedding(word_vectors=word_vectors,
                                         char_vectors=char_vectors,
-                                        hidden_size=embd_params.hidden_size,
+                                        hidden_size=embd_params["hidden_size"],
                                         drop_prob=self.drop_prob,
                                         params=embd_params)
 
@@ -44,7 +44,7 @@ class TransformerModel(nn.Module):
         self.enc = transformer.TransformerEncoder(d_model=self.d_model,
                                                   num_layers=self.params.num_layers,
                                                   num_heads=self.params.num_heads,
-                                                  drop_prop=self.drop_prob)
+                                                  drop_prob=self.drop_prob)
 
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     #def generate_square_subsequent_mask(self, sz):
