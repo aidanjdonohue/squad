@@ -37,12 +37,13 @@ class MultiHeadAttention(nn.Module):
         # Set Num Heads
         self.num_heads = num_heads
 
-    def scaledDotProductAttention(self, q, k, v, T, mask=None, drop_prob=0.1):
+    def scaledDotProductAttention(self, q, k, v, mask=None, drop_prob=0.1):
         att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(self.d_k))
 
         if mask is not None:
             pass
             #TODO apply mask
+            #T = q.size(2)
             #att.masked_fill(mask[:,:,:T,:T] == 0, -1e10) 
 
             #mask = mask.unsqueeze(1)
@@ -61,7 +62,7 @@ class MultiHeadAttention(nn.Module):
         q = self.query(k).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
         v = self.value(v).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
 
-        y = self.scaledDotProductAttention(q, k, v, T, mask)
+        y = self.scaledDotProductAttention(q, k, v, mask)
         y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
 
         # output projection
