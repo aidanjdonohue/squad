@@ -88,11 +88,14 @@ class BiDAFModelParameters():
         return string
 
 class TransformerModelParameters():
-    def __init__(self, name, d_model=100, num_layers=6, num_heads=8, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
+    def __init__(self, name, hidden_size=100, d_size=2, num_layers=6, num_heads=8, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
 
         # defaults
         self.name = name
-        self.d_model = d_model
+
+        self.hidden_size = hidden_size
+        self.d = int(hidden_size * d_size)
+
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.drop_prob = drop_prob
@@ -106,9 +109,7 @@ class TransformerModelParameters():
         }
 
         self.encoder_layer = {
-            'rnn': 'lstm',
-            'layers': ,
-            'hidden_size': self.d
+            'layers': 6
         }
 
 
