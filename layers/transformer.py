@@ -21,6 +21,10 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         assert d_model % num_heads == 0
 
+        self.d_model = d_model
+        self.d_k = d_model // num_heads
+        self.num_heads = num_heads
+
         # key, query, value projections for all heads
         self.key = nn.Linear(d_model, d_model)
         self.query = nn.Linear(d_model, d_model)
@@ -44,22 +48,29 @@ class MultiHeadAttention(nn.Module):
         #self.register_buffer("mask", torch.tril(torch.ones(block_size, block_size))
         #                             .view(1, 1, block_size, block_size))
 
+    def scaledDotProductAttention(self, q, k, v, mask=None, drop_prob=0.1):
+        att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(k.size(-1)))
+
+        if mask is not None:
+            #TODO apply mask
+            pass
+
+        att = F.softmax(att, dim=-1)
+        att = self.attn_dropout(att)
+
+        return att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+
+
     def forward(self, x, mask=None, layer_past=None):
-        B, T, C = x.size()
+        B, T, _ = x.size() # C = self.d_model
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        k = self.key(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2) # (B, nh, T, hs)
-        q = self.query(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2) # (B, nh, T, hs)
-        v = self.value(x).view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2) # (B, nh, T, hs)
+        k = self.key(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
 
-        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(k.size(-1)))
-        #att = att.masked_fill(mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
-        att = F.softmax(att, dim=-1)
-
-        att = self.attn_dropout(att)
-        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+        y = self.scaledDotProductAttention(q, k, v, mask)
+        y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
 
         # output projection
         y = self.resid_dropout(self.proj(y))
