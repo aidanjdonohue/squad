@@ -46,6 +46,17 @@ class TransformerModel(nn.Module):
                                                   num_heads=self.params.num_heads,
                                                   drop_prob=self.drop_prob)
 
+        # 3. Encoding layer
+        self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
+                                        drop_prob=self.drop_prob)
+
+        
+        self.decoder = transformer.TransformerDecoder(d_model=self.d_model,
+                                                      num_layers=self.params.num_layers,
+                                                      num_heads=self.params.num_heads,
+                                                      drop_prob=self.drop_prob)
+
+
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     #def generate_square_subsequent_mask(self, sz):
     #    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
@@ -65,8 +76,16 @@ class TransformerModel(nn.Module):
         ctx_emb = self.pos_enc(ctx_emb)
         query_emb = self.pos_enc(query_emb)
 
-        out = [] # OUT = transformer encoder ouptut
-        # OUT = transformer decoder output)
+        # 2. encoding layer
+        ctx_enc = self.enc(ctx_emb, ctx_len)
+        query_enc = self.enc(query_emb, query_len)
+
+        # 3. Attention layer
+        att = self.att(ctx_enc, query_enc, ctx_mask, query_mask)
+
+        # 4. decoder layer
+        decoder = self.decoder(att, ctx_len)
+
         return out
 
 class BiDAFplus(nn.Module):

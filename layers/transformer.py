@@ -84,11 +84,11 @@ class TransformerEncoder(nn.Module):
         Transformer encoder constructs num_layers identical TranformerEncoderLayers
         The forward function applies each layer to an input
     '''
-    def __init__(self, d_model, num_layers, num_heads, drop_prob=0.1):
+    def __init__(self, d_model, num_layers, num_heads, norm=None, drop_prob=0.1):
         super().__init__()
         self.num_layers = num_layers
         self.layers = self.get_clones(TransformerEncoderLayer(d_model=d_model, num_heads=num_heads), num_layers)
-        self.norm = Norm(d_model)
+        self.norm = norm
 
     #Convenience function to allow us to generate num_layers identical copies of our encoder layer
     def get_clones(self, module, N):
