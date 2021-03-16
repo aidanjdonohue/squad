@@ -108,6 +108,9 @@ master = {
                     encoder_layer={'rnn': 'gru'},
                     modeling_layer={'rnn': 'gru'}
                 )
+    },
+    'Transformer' : {
+        'default' : BiDAFModelParameters('default')
     }
 }
 '''

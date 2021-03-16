@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .encoder import HighwayEncoder
-from math import sin, cos
 
 
 
@@ -209,41 +208,3 @@ class defEmbedding(nn.Module):
         # hidden size = cout_word_ebedding size
 
         return emb
-
-
-class PositionEmbedding(nn.Module):
-    '''
-    Input Embd Size, Drop Probability, Max Sequence Length
-    Apply Vaswani et al. formula:
-        PE(pos, 2i) = sin(pos/10000^(2i/embd_size))
-        PE(pos, 2i + 1) = cos(pos/10000^(2i/embd_size))
-        pos = position, i = dimension
-    
-    '''
-
-    def __init__(self, embd_size, drop_prob=0.1, max_len=5000):
-        super(PositionEmbedding, self).__init__()
-        self.dropout = nn.Dropout(drop_prob)
-        
-        self.pe = self.createPositionalEncodings(embd_size, max_len)
-        self.register_buffer('pe', self.pe)
-
-    def createPositionalEncodings(self, embd_size, max_len):
-        pe = torch.zeros(max_len, embd_size)
-
-        for pos in range(max_len):
-            for i in range(embd_size):
-                power = 2 * i / embd_size
-                pe[pos, i] = sin(pos / (10000 ** (power))) if i % 2 == 0 else cos(pos / (10000 ** (power)))
-            
-        return pe.unsqueeze(0) #TODO one tuturial transposed this but the other didn't. Figure out if this is necessary. transpose(0, 1) 
-
-        # TODO Is this faster?
-        #for i in range(0, embd_size, 2): # Increment by two applying sine and cosine to two coordinates at once
-        #    pe = [pos, i] = math.sin(pos / (10000 ** (2 * i / d_model)
-        #    [e ]
-        
-
-    def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)

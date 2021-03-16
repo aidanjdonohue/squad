@@ -84,8 +84,8 @@ def main(args):
     elif model_type == "Transformer":
         model = TransformerModel(word_vectors=word_vectors,
                                  char_vectors=char_vectors,
-                                 input_size=len(word_vectors),
-                                 hidden_size=args.hidden_size)
+                                 d_model=args.hidden_size,
+                                 params=get_params(model_type, args.params))
     
     elif model_type == 'BiDAF':
         model = BiDAF(word_vectors=word_vectors,
@@ -181,7 +181,7 @@ def main(args):
                 optimizer.zero_grad()
 
                 
-                if model_type == 'BiDAF' or model_type == 'BiDAFplus':
+                if model_type == 'BiDAF' or model_type == 'BiDAFplus' or model_type == "Transformer":
                     cc_idxs = cc_idxs.to(device)
                     qc_idxs = qc_idxs.to(device)
 
