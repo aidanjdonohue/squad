@@ -22,7 +22,7 @@ class MultiHeadAttention(nn.Module):
         assert d_model % num_heads == 0
 
         self.d_model = d_model
-        self.d_k = d_model // num_heads
+        self.d_k = d_model // num_heads #key dimensions = model_dims/num_heads
         self.num_heads = num_heads
 
         # key, query, value projections for all heads
@@ -30,8 +30,6 @@ class MultiHeadAttention(nn.Module):
         self.query = nn.Linear(d_model, d_model)
         self.value = nn.Linear(d_model, d_model)
 
-        #TODO - Version from class uses two dropout layers, not sure if this should be changed or is necessary
-        # regularization 
         self.attn_dropout = nn.Dropout(attn_drop_prob)
         self.resid_dropout = nn.Dropout(resid_drop_prop)
 
@@ -41,19 +39,13 @@ class MultiHeadAttention(nn.Module):
         # Set Num Heads
         self.num_heads = num_heads
         
-        #self.resid_drop = nn.Dropout(resid_pdrop)
 
-        #TODO - Rmemoved for now, not using block size anywhere else might need to replace
-        # causal mask to ensure that attention is only applied to the left in the input sequence
-        #self.register_buffer("mask", torch.tril(torch.ones(block_size, block_size))
-        #                             .view(1, 1, block_size, block_size))
-
-    def scaledDotProductAttention(self, q, k, v, mask=None, drop_prob=0.1):
-        att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(k.size(-1)))
+    def scaledDotProductAttention(self, q, k, v, T, mask=None, drop_prob=0.1):
+        att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(self.d_k))
 
         if mask is not None:
             #TODO apply mask
-            pass
+            att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10) 
 
         att = F.softmax(att, dim=-1)
         att = self.attn_dropout(att)
@@ -69,7 +61,7 @@ class MultiHeadAttention(nn.Module):
         q = self.query(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
         v = self.value(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
 
-        y = self.scaledDotProductAttention(q, k, v, mask)
+        y = self.scaledDotProductAttention(q, k, v, T, mask)
         y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
 
         # output projection
