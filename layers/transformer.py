@@ -212,7 +212,6 @@ class PositionalEncoding(nn.Module):
         return pe.unsqueeze(0).transpose(0, 1)
 
     def forward(self, x):
-        print(x.shape, self.pe[:x.size(0), :].shape)
         x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
 
@@ -226,7 +225,7 @@ class Norm(nn.Module):
         self.alpha = nn.Parameter(torch.ones(self.size))
         self.bias = nn.Parameter(torch.zeros(self.size))
         self.eps = eps
-        
+
     def forward(self, x):
         norm = self.alpha * (x - x.mean(dim=-1, keepdim=True)) \
         / (x.std(dim=-1, keepdim=True) + self.eps) + self.bias

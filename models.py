@@ -57,8 +57,6 @@ class TransformerModel(nn.Module):
         ctx_emb = self.pos_enc(ctx_emb)
         query_emb = self.pos_enc(query_emb)
 
-        print("Applied positional encodings")
-
         out = [] # OUT = transformer encoder ouptut
         # OUT = transformer decoder output)
         return out
