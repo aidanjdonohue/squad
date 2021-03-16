@@ -28,8 +28,8 @@ class MultiHeadAttention(nn.Module):
 
         #TODO - Version from class uses two dropout layers, not sure if this should be changed or is necessary
         # regularization 
-        self.attn_drop = nn.Dropout(attn_drop_prob)
-        self.resid_drop = nn.Dropout(resid_drop_prop)
+        self.attn_dropout = nn.Dropout(attn_drop_prob)
+        self.resid_dropout = nn.Dropout(resid_drop_prop)
 
         # output projection
         self.proj = nn.Linear(d_model, d_model)
@@ -44,7 +44,7 @@ class MultiHeadAttention(nn.Module):
         #self.register_buffer("mask", torch.tril(torch.ones(block_size, block_size))
         #                             .view(1, 1, block_size, block_size))
 
-    def forward(self, x, mask=none, layer_past=None):
+    def forward(self, x, mask=None, layer_past=None):
         B, T, C = x.size()
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
@@ -54,15 +54,15 @@ class MultiHeadAttention(nn.Module):
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(k.size(-1)))
-        att = att.masked_fill(mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
+        #att = att.masked_fill(mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
         att = F.softmax(att, dim=-1)
 
-        att = self.attn_drop_prob(att)
+        att = self.attn_dropout(att)
         y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
         y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
 
         # output projection
-        y = self.resid_drop_prop(self.proj(y))
+        y = self.resid_dropout(self.proj(y))
         return y
 
 #https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#3fa3
@@ -95,13 +95,7 @@ class TransformerEncoder(nn.Module):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
     
     # Apply each attention layer
-
-    #def forward(self, x):
-    #    for i in range(self.num_layers):
-    #        x = self.layers[i](x)
-    #    return self.norm(x)
-
-    # TODO not sure how mask comes into play, we're already using masking for embeddings so maybe that will do
+    # TODO still confused on mask
     def forward(self, x, mask):
         for i in range(self.num_layers):
             x = self.layers[i](x, mask)
