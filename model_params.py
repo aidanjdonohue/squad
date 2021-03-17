@@ -118,7 +118,7 @@ class TransformerModelParameters():
         self.attention_layer = {
         }
 
-        self.decoder_layer = {
+        self.modeling_layer = {
             "num_heads" : 8,
             'drop_prob' : self.drop_prob,
             "num_conv_heads": 8,
