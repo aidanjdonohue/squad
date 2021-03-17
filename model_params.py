@@ -139,7 +139,7 @@ class TransformerModelParameters():
         if attention_layer is not None:
             self.attention_layer.update(attention_layer)
 
-        if decoder_layer is not None:
+        if modeling_layer is not None:
             self.modeling_layer.update(modeling_layer)
 
 
