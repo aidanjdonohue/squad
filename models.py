@@ -62,7 +62,7 @@ class TransformerModel(nn.Module):
 
         mod_out_size = self.hidden_size
         # output layer
-        self.out = Output(input_dim=self.hidden_size)
+        self.out = transformer.TransformerOut(input_dim=self.hidden_size)
 
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     #def generate_square_subsequent_mask(self, sz):
@@ -98,7 +98,7 @@ class TransformerModel(nn.Module):
         # 4. decoder layer
         mod = self.mod(att)
 
-        out = self.out(mod)
+        out = self.out(mod, ctx_mask)
         print("Successful decodings")
         return out
 
