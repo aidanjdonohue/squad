@@ -26,25 +26,42 @@ class TransformerModel(nn.Module):
         self.model_type = "Transformer"
         self.params = params
         self.d_model = params.d
+        self.hidden_size = params.hidden_size
         self.drop_prob = params.drop_prob
 
         # 1. Embedding layer
         embd_params = self.params.embedding_layer
         self.embd = embedding.Embedding(word_vectors=word_vectors,
                                         char_vectors=char_vectors,
-                                        hidden_size=embd_params["hidden_size"],
+                                        hidden_size=self.hidden_size,
                                         drop_prob=self.drop_prob,
                                         params=embd_params)
 
         self.pos_enc = transformer.PositionalEncoding(d_model=self.d_model, 
                                                 drop_prob=self.drop_prob)
 
-
         # 2. Encoding layer
+        enc_params = self.params.encoder_layer
+        norm = None
+        if enc_params["norm"] == True:
+            norm = transformer.Norm(self.d_model)
         self.enc = transformer.TransformerEncoder(d_model=self.d_model,
-                                                  num_layers=self.params.num_layers,
-                                                  num_heads=self.params.num_heads,
+                                                  num_layers=enc_params["num_layers"],
+                                                  num_heads=enc_params["num_heads"],
+                                                  norm=norm,
                                                   drop_prob=self.drop_prob)
+
+        # 3. Attention layer
+        self.att = bidaf.BiDAFAttention(hidden_size=2*self.hidden_size,
+                                        drop_prob=self.drop_prob)
+
+        
+        # 3. Decoder layer
+        dec_params = self.params.decoder_layer
+        self.decoder = transformer.TransformerDecoder(d_model=self.d_model,
+                                                      num_layers=dec_params["num_layers"],
+                                                      num_heads=dec_params["num_heads"],
+                                                      drop_prob=self.drop_prob)
 
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     #def generate_square_subsequent_mask(self, sz):
@@ -65,8 +82,21 @@ class TransformerModel(nn.Module):
         ctx_emb = self.pos_enc(ctx_emb)
         query_emb = self.pos_enc(query_emb)
 
-        out = [] # OUT = transformer encoder ouptut
-        # OUT = transformer decoder output)
+        # 2. encoding layer
+        ctx_enc = self.enc(ctx_emb, ctx_mask)
+        query_enc = self.enc(query_emb, query_mask)
+
+        print("Successful encoding")
+
+        # 3. Attention layer
+        att = self.att(ctx_enc, query_enc, ctx_mask, query_mask)
+
+        print("Successful attention")
+
+        # 4. decoder layer
+        out = self.decoder(att)
+
+        print("Successful decodings")
         return out
 
 class BiDAFplus(nn.Module):
