@@ -6,269 +6,231 @@ import copy
 from math import sqrt, sin, cos
 from util import masked_softmax
 
+BLOCK_SIZE = 5000
 
-class TransformerEncoder(nn.Module):
-    ''' 
-        Per Vaswani et al. Attention is all you need.
-        Transformer encoder constructs num_layers identical TranformerEncoderLayers
-        The forward function applies each layer to an input
-    '''
-    def __init__(self, d_model, num_layers, num_heads, norm=None, drop_prob=0.1):
-        super().__init__()
-        self.num_layers = num_layers
-        self.layers = self.get_clones(TransformerEncoderLayer(d_model=d_model, 
-                                                              num_heads=num_heads, 
-                                                              drop_prob=drop_prob, 
-                                                              norm=norm), num_layers)
-        self.norm = norm
 
-    #Convenience function to allow us to generate num_layers identical copies of our encoder layer
-    def get_clones(self, module, N):
-        return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
-    
-    #Apply each encoder layer and normalize
-    def forward(self, x, mask=None):
-        for i in range(self.num_layers):
-            x = self.layers[i](x, mask)
-        return self.norm(x) if self.norm is not None else x
+class TransformerOut(nn.Module):
 
-class TransformerEncoderLayer(nn.Module):
-    ''' 
-    Per Vaswani et al. Attention is all you need.
-    Each encoder layer consists of two sublayers
-        - MultiHeadAttention Sublayer
-        - FeedForward Sublayer
-    The forward function applies each sublayer with a dropout for each layer
-    '''
-    def __init__(self, d_model, num_heads, drop_prob = 0.1, norm=None):
-        super().__init__()
-        self.norm = norm
-        self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
-        self.ff = FeedForward(d_model=d_model)
-        self.dropout = nn.Dropout(drop_prob)
+    def __init__(self, input_size, output_size, drop_prob=0.1):
 
-    def normalize(self, x):
-        return self.norm(x) if self.norm is not None else x
+        self.start_dense = Linear(input_size, output_size)
+        self.end_dense = Linear(input_size, output_size)
 
-    def forward(self, x, mask):
-        x = self.normalize(x)
-        x = x + self.dropout(self.attn(x, x, x, mask)) #self attention k,q,v from same source
-        x = self.normalize(x)
-        x = x + self.dropout(self.ff(x)) #apply feed forward
-        return x
+    def forward(self, mod):
 
-class TransformerDecoder(nn.Module):
-    ''' 
-        Per Vaswani et al. Attention is all you need.
-        Transformer encoder constructs num_layers identical TranformerDecoderLayers
-        The forward function applies each layer to an input
+        m1, m2, m3 = mod
 
-        *Note
-        Similair too Transformer Encoder but has following changes
-            - Uses DecoderLayer rather than Encoder layer
-            - Must add another level of masking
-            - Includes encoder_outputs as well as the emebeddings in the forward function
-    '''
-    def __init__(self, d_model, num_layers, num_heads, drop_prob = 0.1, norm=None):
-        super().__init__()
-        self.num_layers = num_layers
-        self.layers = self.get_clones(TransformerDecoderLayer(d_model=d_model, num_heads=num_heads, drop_prob=drop_prob, norm=norm), num_layers)
-        self.norm = norm
+        # start predictor
+        # m1, m2
 
-    #Convenience function to allow us to generate num_layers identical copies of our encoder layer
-    def get_clones(self, module, N):
-        return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
 
-    def forward(self, x, mask=None): #, encoder_outputs, src_mask, trg_mask):
-        for i in range(self.num_layers):
-            x = self.layers[i](x, mask)# encoder_outputs, src_mask, trg_mask)
-        return self.norm(x) if self.norm is not None else x
 
-class TransformerDecoderLayer(nn.Module):
-    ''' 
-    Per Vaswani et al. Attention is all you need.
-    Each decoder layer consists of three sublayers
-        - MultiHeadAttention Sublayer
-        - FeedForward Sublayer
-        - Additional MultiHeadAttention Sublayer that attends to encoder stack
 
-    The forward function applies each sublayer with a dropout for each layer
-    '''
-    def __init__(self, d_model, num_heads, drop_prob = 0.1, norm=None):
-        super().__init__()
-        self.norm = norm
-        self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
-        #TODO figure out if we need second attention layer
-        self.ff = FeedForward(d_model=d_model)
-        self.dropout = nn.Dropout(drop_prob)
+        # end predictor
+        # m1, m3
 
-    def normalize(self, x):
-        return self.norm(x) if self.norm is not None else x
 
-    #TODO still confused on src and target_mask
-    def forward(self, x, encoder_outputs, src_mask, trg_mask):
-        x = self.normalize(x)
-        x = x + self.dropout(self.attn(x, x, x, trg_mask)) #self attention k,q,v from same source
 
-        x = self.normalize(x) 
-        x = x + self.dropout(self.attn(x, encoder_outputs, encoder_outputs, src_mask)) #attention between embeddings and encoder outputs I think
-
-        x = self.normalize(x)
-        x = x + self.dropout(self.ff(x)) #apply feed forward
-        return x
-
-    '''
-    def forward(self, x, encoder_outputs, src_mask, trg_mask):
-        x = self.normalize(x)
-        x = x + self.dropout(self.attn(x, trg_mask))
-
-        #TODO: this would be attention between encoder outputs, need to update multihead attention to support k, q, v that aren't all from same source
-        x = self.normalize(x)
-        x = x + self.dropout(self.attn(x, encoder_outputs, encoder_outputs, src_mask)) 
-
-        x = self.normalize(x)
-        x = self.dropout(self.ff(x))
-        return x
-    '''
-
-#Modified version of multi-head self-attention from assign 5
-class MultiHeadAttention(nn.Module):
-    """ 
+class SelfAttention(nn.Module):
+    """
     A vanilla multi-head masked self-attention layer with a projection at the end.
     I believe I could have just used torch.nn.MultiheadAttention but their documentation
     is all but absent and code ugly so I don't trust it, rolling my own here.
     """
 
-    def __init__(self, d_model, num_heads, attn_drop_prob=0.1, resid_drop_prop=0.1):
-        super().__init__()
-        assert d_model % num_heads == 0
-
-        self.d_model = d_model
-        self.d_k = d_model // num_heads #key dimensions = model_dims/num_heads
-        self.num_heads = num_heads
-
+    def __init__(self, input_size, output_size, drop_prob=0.1, max_len=BLOCK_SIZE):
+        super(SelfAttention, self).__init__()
         # key, query, value projections for all heads
-        self.key = nn.Linear(d_model, d_model)
-        self.query = nn.Linear(d_model, d_model)
-        self.value = nn.Linear(d_model, d_model)
-
-        self.attn_dropout = nn.Dropout(attn_drop_prob)
-        self.resid_dropout = nn.Dropout(resid_drop_prop)
-
+        self.key = nn.Linear(input_size, output_size)
+        self.query = nn.Linear(input_size, output_size)
+        self.value = nn.Linear(input_size, output_size)
+        # regularization
+        self.attn_drop = nn.Dropout(drop_prob)
+        self.resid_drop = nn.Dropout(drop_prob)
         # output projection
-        self.proj = nn.Linear(d_model, d_model)
+        self.proj = nn.Linear(input_size, output_size)
+        # causal mask to ensure that attention is only applied to the left in the input sequence
+        self.register_buffer("mask", torch.tril(torch.ones(max_len, max_len))
+                                     .view(1, 1, max_len, max_len))
+        self.n_head = 8
 
-        # Set Num Heads
-        self.num_heads = num_heads
-
-    def scaledDotProductAttention(self, q, k, v, mask=None, drop_prob=0.1):
-        att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(self.d_k))
-
-        if mask is not None:
-            pass
-            #TODO apply mask
-            #T = q.size(2)
-            #att.masked_fill(mask[:,:,:T,:T] == 0, -1e10) 
-
-            #mask = mask.unsqueeze(1)
-            #att = att.masked_fill(mask == 0, -1e10)
-
-        att = F.softmax(att, dim=-1)
-        att = self.attn_dropout(att)
-
-        return att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-
-    def forward(self, q, k, v, mask=None):
-        B, T = q.size(0), q.size(1)
+    def forward(self, x, layer_past=None):
+        B, T, C = x.size()
+        # batch_size, seq_len, embed_size
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        k = self.key(q).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
-        q = self.query(k).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
-        v = self.value(v).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
-
-        y = self.scaledDotProductAttention(q, k, v, mask)
-        y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
-
-        # output projection
-        return self.resid_dropout(self.proj(y))
-
-    '''
-    def forward(self, x, mask=None, layer_past=None):
-        B, T, _ = x.size() # C = self.d_model
-
-        print("B", B, "T", T, "x", x.size)
-
-        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        k = self.key(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
-        q = self.query(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
-        v = self.value(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
-
-        print(q.shape, k.shape, v.shape)
-
-        y = self.scaledDotProductAttention(q, k, v, T, mask)
-        y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
-
-        # output projection
-        return self.resid_dropout(self.proj(y))
-    '''
-
-
-#https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#3fa3
-class FeedForward(nn.Module):
-    def __init__(self, d_model, d_ff=2048, drop_prob=0.1):
-        super().__init__() 
-        self.linear_1 = nn.Linear(d_model, d_ff)
-        self.dropout = nn.Dropout(drop_prob)
-        self.linear_2 = nn.Linear(d_ff, d_model)
-
-    def forward(self, x):
-        x = self.dropout(F.relu(self.linear_1(x)))
-        x = self.linear_2(x)
-        return x
-
-# Positional encodings from Attention is All You Need paper - Applied in each sub-layer of the encoder
-class PositionalEncoding(nn.Module):
-    '''
-    Input: Embd Size, Drop Probability, Max Sequence Length
-    Apply formula from Attention is All You Need:
-        PE(pos, 2i) = sin(pos/10000^(2i/embd_size))
-        PE(pos, 2i + 1) = cos(pos/10000^(2i/embd_size))
-        pos = position, i = dimension
-    Output: Sinusoidal Positional Encodings
-    '''
-
-    def __init__(self, d_model, drop_prob=0.1, max_len=5000):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(drop_prob)
-        self.pe = self.createPositionalEncodings(d_model, max_len)
-        #self.register_buffer('pe', self.pe)
-
-    def createPositionalEncodings(self, d_model, max_len):
-        pe = torch.zeros(max_len, d_model)
-
-        for pos in range(max_len):
-            for i in range(d_model):
-                power = 2 * i / d_model
-                pe[pos, i] = sin(pos / (10000 ** (power))) if i % 2 == 0 else cos(pos / (10000 ** (power)))
         
-        return pe.unsqueeze(0).transpose(0, 1)
+        k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
 
-    def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
+        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+        att = att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
+        att = F.softmax(att, dim=-1)
+        att = self.attn_drop(att)
+        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
 
-#https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#3fa3
-class Norm(nn.Module):
-    def __init__(self, d_model, eps = 1e-6):
+        # output projection
+        y = self.resid_drop(self.proj(y))
+        return y
+
+
+############################################
+#####
+
+class TransformerDecoder(nn.Module):
+    def __init__(self, input_dim, params):
         super().__init__()
-    
-        self.size = d_model
-        # create two learnable parameters to calibrate normalisation
-        self.alpha = nn.Parameter(torch.ones(self.size))
-        self.bias = nn.Parameter(torch.zeros(self.size))
-        self.eps = eps
+
+
+        self.block1 = TransformerBlock(input_dim=input_dim,
+                                       num_heads=params['num_heads'],
+                                       drop_prob=params['drop_prob'],
+                                       num_conv_blocks=params['num_conv_blocks'])
+
+        self.block2 = TransformerBlock(input_dim=input_dim,
+                                       num_heads=params['num_heads'],
+                                       drop_prob=params['drop_prob'],
+                                       num_conv_blocks=params['num_conv_blocks'])
+        self.block2 = TransformerBlock(input_dim=input_dim,
+                                       num_heads=params['num_heads'],
+                                       drop_prob=params['drop_prob'],
+                                       num_conv_blocks=params['num_conv_blocks'])
 
     def forward(self, x):
-        norm = self.alpha * (x - x.mean(dim=-1, keepdim=True)) \
-        / (x.std(dim=-1, keepdim=True) + self.eps) + self.bias
-        return norm
+
+        m1 = self.block1(x)
+        m2 = self.block2(M1)
+        m3 = self.block3(M2)
+
+        return m1, m2, m3
+
+
+class TransformerBlock(nn.Module):
+    def __init__(self, input_dim, num_heads, drop_prob, num_conv_blocks=1):
+        super().__init__()
+
+        self.drop_prob = drop_prob
+
+        self.conv_blocks = nn.ModuleList(ConvBlock() for _ in range(num_conv_blocks))
+
+        self.att = SelfAttention(input_dim, input_dim, drop_prob)
+        # todo what shape
+        self.att_norm = nn.LayerNorm(input_dim)
+
+        self.ff = FeedForward(d_model=input_dim)
+        # todo what shape
+        self.ff_norm = nn.LayerNorm(input_dim)
+
+    def forward(self, x):
+
+        # potentialy reshape to go into the conv blocks
+        out = x.permute(0, 2, 1)
+        for conv_block in self.conv_blocks:
+            out = conv_block(out)
+
+        out = out.permute(0, 2, 1)
+        # potential reshape back
+
+        # self attention
+        out = self.att(out)
+        out = self.att_norm(out)
+
+        # feed forward
+        out = self.ff(out)
+        out = self.ff_norm(out)
+
+        out = F.dropout(out, self.drop_prob, self.training)
+
+        return out
+
+
+
+
+class PositionalEncoder(nn.Module):
+
+    def __init__(self, embedding_size, drop_prob=0.1, max_len=BLOCK_SIZE, scale_factor=0.5):
+        super(PositionalEncoder, self).__init__()
+
+        # ammount by which we scale the embeddings before adding the positional encodings
+        self.scale_factor = embedding_size ** scale_factor
+        self.embedding_size = embedding_size
+        self.drop_prob = drop_prob
+
+        self.pe = createEncodingMatrix(embedding_size, max_len)
+
+
+    def forward(self, x):
+        # create mask
+        # masks
+        x_mask = torch.zeros_like(x) != x
+        
+        # broadcasting 
+        # (batch_size, seq_len, embed_size) * (seq_len, embed_size) -> (batch_size, seq_len, embed_size)            
+        pe_masked = x_mask * self.pe[:x.size(1),:] # 
+
+        # scale embeddings so positional embeddings 
+        # don't affect their meaning
+        x_scaled = x * self.scale_factor
+        # add encoding
+        out = x_scaled + pe_masked
+        # drop_prob
+        out = F.dropout(out, self.drop_prob, self.training)
+
+        return out
+
+
+    
+    def createEncodingMatrix(self, embedding_size, max_len):
+        """Positional encoding matrix code from:
+           https://github.com/wzlxjtu/PositionalEncoding2D/blob/master/positionalembedding2d.py
+        """
+        if embedding_size % 2 != 0:
+        raise ValueError("Cannot use sin/cos positional encoding with "
+                         "odd dim (got dim={:d})".format(embedding_size))
+        
+        pe = torch.zeros(max_len, embedding_size)
+
+        position = torch.arange(0, max_len).unsqueeze(1)
+        div_term = torch.exp((torch.arange(0, embedding_size, 2, dtype=torch.float) *
+                             -(math.log(10000.0) / embedding_size)))
+
+        pe[:, 0::2] = torch.sin(position.float() * div_term)
+        pe[:, 1::2] = torch.cos(position.float() * div_term)
+
+        return pe
+
+
+
+class ConvBlock(nn.Module):
+
+    def __init__(self, input_dim, kernel_size):
+
+        self.depthwise = nn.Conv1d(in_channels=input_dim,
+                                   out_channels=input_dim,
+                                   kernel_size=kernel_size,
+                                   padding=kernel_size // 2,
+                                   groups=in_channels)
+        self.pointwise = nn.Conv1d(in_channels=input_dim,
+                                   out_channels=input_dim,
+                                   kernel_size=1)
+
+        self.norm = nn.LayerNorm(input_dim)
+
+
+    def forward(self, x):
+        # shape batch, dim, seq_len
+       
+        out = self.depthwise(x)
+        out = self.pointwise(out)
+        out = self.norm(out)
+
+        return out
+
+
+
+
+
+

@@ -3,26 +3,54 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-
+from .transformer import SelfAttention, FeedForward
 import math
 
+class TransformerDecoder(nn.Module):
+    def __init__(self, input_dim, params):
+        super().__init__()
+
+
+        self.block1 = TransformerBlock(input_dim=input_dim,
+                                       num_heads=params['num_heads'],
+                                       drop_prob=params['drop_prob'],
+                                       num_conv_blocks=params['num_conv_blocks'])
+
+        self.block2 = TransformerBlock(input_dim=input_dim,
+                                       num_heads=params['num_heads'],
+                                       drop_prob=params['drop_prob'],
+                                       num_conv_blocks=params['num_conv_blocks'])
+        self.block2 = TransformerBlock(input_dim=input_dim,
+                                       num_heads=params['num_heads'],
+                                       drop_prob=params['drop_prob'],
+                                       num_conv_blocks=params['num_conv_blocks'])
+
+    def forward(self, x):
+
+        M1 = self.block1(x)
+        M2 = self.block2(M1)
+        M3 = self.block3(M2)
+
+        return M1, M2, M3
+
+
 class TransformerBlock(nn.Module):
-    def __init__(self, input_dim, num_heads, n_conv_blocks, num_heads, drop_prob):
+    def __init__(self, input_dim, num_heads, drop_prob, num_conv_blocks=1):
         super().__init__()
 
         self.drop_prob
 
         self.conv_blocks = nn.ModuleList(ConvBlock() for _ in range(n_conv_blocks))
 
-        self.att = SelfAttention()
+        self.att = SelfAttention(input_dim, input_dim, drop_prob)
         # todo what shape
-        self.att_norm = nn.LayerNorm()
+        self.att_norm = nn.LayerNorm(input_dim)
 
         self.ff = FeedForward(d_model=input_dim)
         # todo what shape
-        self.ff_norm = nn.LayerNorm()
+        self.ff_norm = nn.LayerNorm(input_dim)
 
-    def forward(self, x, mask):
+    def forward(self, x):
 
         # potentialy reshape to go into the conv blocks
         out = x
@@ -32,7 +60,7 @@ class TransformerBlock(nn.Module):
         # potential reshape back
 
         # self attention
-        out = self.att(out, mask)
+        out = self.att(out)
         out = self.att_norm(out)
 
         # feed forward
@@ -58,28 +86,6 @@ class ConvBlock(nn.Module):
         return out
 
 
-
-class TransformerEncoderLayer(nn.Module):
-    ''' 
-    Per Vaswani et al. Attention is all you need.
-    Each encoder layer consists of two sublayers
-        - MultiHeadAttention Sublayer
-        - FeedForward Sublayer
-    The forward function applies each sublayer with a dropout for each layer
-    '''
-    def __init__(self, d_model, num_heads, drop_prob = 0.1):
-        super().__init__()
-        self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
-        self.ff = FeedForward(d_model=d_model)
-        self.dropout = nn.Dropout(drop_prob)
-
-
-    def forward(self, x, mask):
-        x = self.normalize(x)
-        x = x + self.dropout(self.attn(x, x, x, mask)) #self attention k,q,v from same source
-        x = self.normalize(x)
-        x = x + self.dropout(self.ff(x)) #apply feed forward
-        return x
 
 
 
