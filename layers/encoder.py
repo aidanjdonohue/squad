@@ -4,6 +4,141 @@ import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+import math
+
+class TransformerBlock(nn.Module):
+    def __init__(self, input_dim, num_heads, n_conv_blocks, num_heads, drop_prob):
+        super().__init__()
+
+        self.drop_prob
+
+        self.conv_blocks = nn.ModuleList(ConvBlock() for _ in range(n_conv_blocks))
+
+        self.att = SelfAttention()
+        # todo what shape
+        self.att_norm = nn.LayerNorm()
+
+        self.ff = FeedForward(d_model=input_dim)
+        # todo what shape
+        self.ff_norm = nn.LayerNorm()
+
+    def forward(self, x, mask):
+
+        # potentialy reshape to go into the conv blocks
+        out = x
+        for conv_block in self.conv_blocks:
+            out = conv_block(out)
+
+        # potential reshape back
+
+        # self attention
+        out = self.att(out, mask)
+        out = self.att_norm(out)
+
+        # feed forward
+        out = self.ff(out)
+        out = self.ff_norm(out)
+
+        out = F.dropout(out, self.drop_prob, self.training)
+
+        return out
+
+
+class ConvBlock(nn.Module):
+
+    def __init__(self, input_dim, kernel_size):
+
+
+    def forward(self, x):
+
+
+        out = self.conv(x)
+        out = self.norm(out)
+
+        return out
+
+
+
+class TransformerEncoderLayer(nn.Module):
+    ''' 
+    Per Vaswani et al. Attention is all you need.
+    Each encoder layer consists of two sublayers
+        - MultiHeadAttention Sublayer
+        - FeedForward Sublayer
+    The forward function applies each sublayer with a dropout for each layer
+    '''
+    def __init__(self, d_model, num_heads, drop_prob = 0.1):
+        super().__init__()
+        self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
+        self.ff = FeedForward(d_model=d_model)
+        self.dropout = nn.Dropout(drop_prob)
+
+
+    def forward(self, x, mask):
+        x = self.normalize(x)
+        x = x + self.dropout(self.attn(x, x, x, mask)) #self attention k,q,v from same source
+        x = self.normalize(x)
+        x = x + self.dropout(self.ff(x)) #apply feed forward
+        return x
+
+
+
+class PositionalEncoder(nn.Module):
+
+    def __init__(self, embedding_size, drop_prob=0.1, max_len=5000, scale_factor=0.5):
+        super(PositionalEncoder, self).__init__()
+
+        # ammount by which we scale the embeddings before adding the positional encodings
+        self.scale_factor = embedding_size ** scale_factor
+        self.embedding_size = embedding_size
+        self.drop_prob = drop_prob
+
+        self.pe = createEncodingMatrix(embedding_size, max_len)
+
+
+    def forward(self, x):
+        # create mask
+        # masks
+        x_mask = torch.zeros_like(x) != x
+        
+        # broadcasting 
+        # (batch_size, seq_len, embed_size) * (seq_len, embed_size) -> (batch_size, seq_len, embed_size)            
+        pe_masked = x_mask * self.pe[:x.size(1),:] # 
+
+        # scale embeddings so positional embeddings 
+        # don't affect their meaning
+        x_scaled = x * self.scale_factor
+        # add encoding
+        out = x_scaled + pe_masked
+        # drop_prob
+        out = F.dropout(out, self.drop_prob, self.training)
+
+        return out
+
+
+    
+    def createEncodingMatrix(self, embedding_size, max_len):
+        """Positional encoding matrix code from:
+           https://github.com/wzlxjtu/PositionalEncoding2D/blob/master/positionalembedding2d.py
+        """
+        if embedding_size % 2 != 0:
+        raise ValueError("Cannot use sin/cos positional encoding with "
+                         "odd dim (got dim={:d})".format(embedding_size))
+        
+        pe = torch.zeros(max_len, embedding_size)
+
+        position = torch.arange(0, max_len).unsqueeze(1)
+        div_term = torch.exp((torch.arange(0, embedding_size, 2, dtype=torch.float) *
+                             -(math.log(10000.0) / embedding_size)))
+
+        pe[:, 0::2] = torch.sin(position.float() * div_term)
+        pe[:, 1::2] = torch.cos(position.float() * div_term)
+
+        return pe
+
+
+
+
 
 
 
