@@ -32,22 +32,22 @@ class TransformerModel(nn.Module):
         embd_params = self.params.embedding_layer
         self.embd = embedding.Embedding(word_vectors=word_vectors,
                                         char_vectors=char_vectors,
-                                        hidden_size=self.hidden_size,
-                                        drop_prob=self.drop_prob,
+                                        #hidden_size=self.hidden_size,
+                                        #drop_prob=self.drop_prob,
                                         params=embd_params)
 
-        embedding_size = 2 * hidden_size
+        embedding_size = 2 * self.hidden_size
         self.pos_enc = transformer.PositionalEncoder(embedding_size=embedding_size, 
                                                   drop_prob=self.drop_prob)
 
         # 2. Encoding layer
         enc_params = self.params.encoder_layer
 
-        self.enc = transformer.TransformerBlock(d_model=self.d_model,
-                                            num_layers=enc_params["num_layers"],
+        self.enc = transformer.TransformerBlock(input_dim=embedding_size,
+                                            #num_layers=enc_params["num_layers"],
                                             num_heads=enc_params["num_heads"],
-                                            n_conv_blocks=1,
-                                            drop_prob=self.drop_prob)
+                                            drop_prob=self.drop_prob,
+                                            num_conv_blocks=1)
 
 
         # 3. Attention layer

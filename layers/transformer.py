@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
-from math import sqrt, sin, cos
+from math import sqrt, sin, cos, log
 from util import masked_softmax
 
 BLOCK_SIZE = 5000
@@ -109,12 +109,12 @@ class TransformerDecoder(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, input_dim, num_heads, drop_prob, num_conv_blocks=1):
+    def __init__(self, input_dim, num_heads, drop_prob, kernel_size=3, num_conv_blocks=1):
         super().__init__()
 
         self.drop_prob = drop_prob
 
-        self.conv_blocks = nn.ModuleList(ConvBlock() for _ in range(num_conv_blocks))
+        self.conv_blocks = nn.ModuleList(ConvBlock(input_dim, kernel_size) for _ in range(num_conv_blocks))
 
         self.att = SelfAttention(input_dim, input_dim, drop_prob)
         # todo what shape
@@ -159,7 +159,7 @@ class PositionalEncoder(nn.Module):
         self.embedding_size = embedding_size
         self.drop_prob = drop_prob
 
-        self.pe = createEncodingMatrix(embedding_size, max_len)
+        self.pe = self.createEncodingMatrix(embedding_size, max_len)
 
 
     def forward(self, x):
@@ -188,14 +188,14 @@ class PositionalEncoder(nn.Module):
            https://github.com/wzlxjtu/PositionalEncoding2D/blob/master/positionalembedding2d.py
         """
         if embedding_size % 2 != 0:
-        raise ValueError("Cannot use sin/cos positional encoding with "
+            raise ValueError("Cannot use sin/cos positional encoding with "
                          "odd dim (got dim={:d})".format(embedding_size))
         
         pe = torch.zeros(max_len, embedding_size)
 
         position = torch.arange(0, max_len).unsqueeze(1)
         div_term = torch.exp((torch.arange(0, embedding_size, 2, dtype=torch.float) *
-                             -(math.log(10000.0) / embedding_size)))
+                             -(log(10000.0) / embedding_size)))
 
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
@@ -212,7 +212,7 @@ class ConvBlock(nn.Module):
                                    out_channels=input_dim,
                                    kernel_size=kernel_size,
                                    padding=kernel_size // 2,
-                                   groups=in_channels)
+                                   groups=input_dim)
         self.pointwise = nn.Conv1d(in_channels=input_dim,
                                    out_channels=input_dim,
                                    kernel_size=1)
