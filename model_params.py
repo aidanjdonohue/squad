@@ -198,52 +198,6 @@ master = {
         'default' : TransformerModelParameters('default')
     }
 }
-'''
-master = { 
-    'BiDAF': { 
-        'default': {
-            'phrase_encoder': 'lstm',
-            'encoder_layers': 1,
-            'hwy_layers': 2,
-            'kernel_size': (1,5),
-            'hidden_size': 100,
-            'drop_prob': 0.2,
-            'modeler': 'lstm',
-            'modeler_layers': 2,
-            'char_embedder': 'cnn',
-            'output_encoder': 'lstm',
-            'output_layers': 1,
-
-        },
-    },
-    'BiDAFplus': {
-        'default': {
-            'phrase_encoder': 'lstm', #'gru'
-            'out_channels': 100,
-            'filters': [[1,5]],
-            'drop_prob': 0.2,
-            'hwy_layers': 2,
-            'modeler_layers': 2,
-            'encoder_layers': 1,
-        },
-        'gru_enc': {
-            'phrase_encoder': 'gru', #'gru'
-            'out_channels': 100,
-            'filters': [[1,5]],
-            'drop_prob': 0.2,
-            'hwy_layers': 2,
-            'modeler_layers': 2,
-            'encoder_layers': 1,
-        },
-
-    },
-    'SelfAttention': {
-        'default': {
-
-        },
-    },
-}
-'''
 
 
 
