@@ -6,7 +6,7 @@ import copy
 import math
 from util import masked_softmax
 
-BLOCK_SIZE = 5000
+BLOCK_SIZE = 500
 
 
 class TransformerOut(nn.Module):
@@ -179,7 +179,7 @@ class PositionalEncoder(nn.Module):
         
         # broadcasting 
         # (batch_size, seq_len, embed_size) * (seq_len, embed_size) -> (batch_size, seq_len, embed_size)            
-        pe_masked = x_mask.float() * self.pe[:x.size(1),:] # 
+        pe_masked = x_mask.float() * nn.Variable(self.pe[:x.size(1),:],, requires_grad=False).cuda() # 
 
         # scale embeddings so positional embeddings 
         # don't affect their meaning
