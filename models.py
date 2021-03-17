@@ -37,7 +37,7 @@ class TransformerModel(nn.Module):
                                         params=embd_params)
 
         self.pos_enc = transformer.PositionalEncoding(d_model=self.d_model, 
-                                                drop_prob=self.drop_prob)
+                                                      drop_prob=self.drop_prob)
 
 
         # 2. Encoding layer
