@@ -94,29 +94,31 @@ class TransformerModelParameters():
 
         # defaults
         self.name = name
-
+        self.hidden_size = hidden_size
         self.d = int(hidden_size * d_size)
-
-        self.num_layers = num_layers
-        self.num_heads = num_heads
         self.drop_prob = drop_prob
         
         self.embedding_layer = {
-            'hidden_size': hidden_size,
             'hwy_layers': 2,
             'char_embedder': 'cnn',
             'kernel_size': (1,5),
         }
 
         self.encoder_layer = {
+            "num_layers" : num_layers,
+            "num_heads" : num_heads,
+            "norm" : True
         }
 
+        # No impact rn
         self.attention_layer = {
-
+            "type" : "scaled_dot_product"
         }
 
-        # doesn't affect model yet
         self.decoder_layer = {
+            "num_layers" : num_layers,
+            "num_heads" : num_heads,
+            "norm" : True
         }
 
         self.filters = [] #For char embeddings idk what this actually does
@@ -140,9 +142,8 @@ class TransformerModelParameters():
 
         string = \
         f"Param name  : {self.name}\n" +\
-        f"dimensions : {self.d}\n" +\
-        f"num_layers : {self.num_layers}\n" +\
-        f"num_layers : {self.num_heads}\n" +\
+        f"hidden_size : {self.hidden_size}\n" +\
+        f"d_model : {self.d}\n" +\
         f"drop_prob   : {self.drop_prob}\n" +\
         f'embedding_layer\n' + \
         str(self.embedding_layer)  + '\n' +\

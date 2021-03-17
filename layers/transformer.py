@@ -6,8 +6,6 @@ import copy
 from math import sqrt, sin, cos
 from util import masked_softmax
 
-#from encoder import RNNEncoder
-
 
 #Modified version of multi-head self-attention from assign 5
 class MultiHeadAttention(nn.Module):
@@ -21,57 +19,82 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         assert d_model % num_heads == 0
 
+        self.d_model = d_model
+        self.d_k = d_model // num_heads #key dimensions = model_dims/num_heads
+        self.num_heads = num_heads
+
         # key, query, value projections for all heads
         self.key = nn.Linear(d_model, d_model)
         self.query = nn.Linear(d_model, d_model)
         self.value = nn.Linear(d_model, d_model)
 
-        #TODO - Version from class uses two dropout layers, not sure if this should be changed or is necessary
-        # regularization 
-        self.attn_drop = nn.Dropout(attn_drop_prob)
-        self.resid_drop = nn.Dropout(resid_drop_prop)
+        self.attn_dropout = nn.Dropout(attn_drop_prob)
+        self.resid_dropout = nn.Dropout(resid_drop_prop)
 
         # output projection
         self.proj = nn.Linear(d_model, d_model)
 
         # Set Num Heads
         self.num_heads = num_heads
-        
-        #self.resid_drop = nn.Dropout(resid_pdrop)
 
-        #TODO - Rmemoved for now, not using block size anywhere else might need to replace
-        # causal mask to ensure that attention is only applied to the left in the input sequence
-        #self.register_buffer("mask", torch.tril(torch.ones(block_size, block_size))
-        #                             .view(1, 1, block_size, block_size))
+    def scaledDotProductAttention(self, q, k, v, mask=None, drop_prob=0.1):
+        att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(self.d_k))
 
-    def forward(self, x, layer_past=None):
-        B, T, C = x.size()
+        if mask is not None:
+            pass
+            #TODO apply mask
+            #T = q.size(2)
+            #att.masked_fill(mask[:,:,:T,:T] == 0, -1e10) 
+
+            #mask = mask.unsqueeze(1)
+            #att = att.masked_fill(mask == 0, -1e10)
+
+        att = F.softmax(att, dim=-1)
+        att = self.attn_dropout(att)
+
+        return att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+
+    def forward(self, q, k, v, mask=None):
+        B, T = q.size(0), q.size(1)
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        q = self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        k = self.key(q).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(k).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(v).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
 
-        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        att = (q @ k.transpose(-2, -1)) * (1.0 / sqrt(k.size(-1)))
-        att = att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
-        att = F.softmax(att, dim=-1)
-
-        att = self.attn_drop_prob(att)
-        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+        y = self.scaledDotProductAttention(q, k, v, mask)
+        y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
 
         # output projection
-        y = self.resid_drop_prop(self.proj(y))
-        return y
+        return self.resid_dropout(self.proj(y))
+
+    '''
+    def forward(self, x, mask=None, layer_past=None):
+        B, T, _ = x.size() # C = self.d_model
+
+        print("B", B, "T", T, "x", x.size)
+
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        k = self.key(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        q = self.query(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+        v = self.value(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2) # (B, nh, T, hs)
+
+        print(q.shape, k.shape, v.shape)
+
+        y = self.scaledDotProductAttention(q, k, v, T, mask)
+        y = y.transpose(1, 2).contiguous().view(B, T, self.d_model) # re-assemble all head outputs side by side
+
+        # output projection
+        return self.resid_dropout(self.proj(y))
+    '''
 
 #https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#3fa3
 class FeedForward(nn.Module):
-    def __init__(self, embd_size, d_ff=2048, drop_prob=0.1):
+    def __init__(self, d_model, d_ff=2048, drop_prob=0.1):
         super().__init__() 
-        self.linear_1 = nn.Linear(embd_size, d_ff)
+        self.linear_1 = nn.Linear(d_model, d_ff)
         self.dropout = nn.Dropout(drop_prob)
-        self.linear_2 = nn.Linear(d_ff, embd_size)
+        self.linear_2 = nn.Linear(d_ff, d_model)
 
     def forward(self, x):
         x = self.dropout(F.relu(self.linear_1(x)))
@@ -84,24 +107,22 @@ class TransformerEncoder(nn.Module):
         Transformer encoder constructs num_layers identical TranformerEncoderLayers
         The forward function applies each layer to an input
     '''
-    def __init__(self, d_model, num_layers, num_heads, drop_prob=0.1):
+    def __init__(self, d_model, num_layers, num_heads, norm=None, drop_prob=0.1):
         super().__init__()
         self.num_layers = num_layers
-        self.layers = self.get_clones(TransformerEncoderLayer(d_model=d_model, num_heads=num_heads), num_layers)
-        self.norm = Norm(d_model)
+        self.layers = self.get_clones(TransformerEncoderLayer(d_model=d_model, num_heads=num_heads, drop_prob=drop_prob, norm=norm), num_layers)
+        self.norm = norm
 
     #Convenience function to allow us to generate num_layers identical copies of our encoder layer
     def get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
     
-    # Apply each attention layer
-    # TODO not sure how mask comes into play, we're already using masking for embeddings so maybe that will do
-    def forward(self, x, mask):
+    #Apply each encoder layer and normalize
+    def forward(self, x, mask=None):
         for i in range(self.num_layers):
             x = self.layers[i](x, mask)
-        return self.norm(x)
+        return self.norm(x) if self.norm is not None else x
 
-#https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec#3fa3
 class TransformerEncoderLayer(nn.Module):
     ''' 
     Per Vaswani et al. Attention is all you need.
@@ -110,20 +131,21 @@ class TransformerEncoderLayer(nn.Module):
         - FeedForward Sublayer
     The forward function applies each sublayer with a dropout for each layer
     '''
-    def __init__(self, d_model, num_heads, dropout = 0.1):
+    def __init__(self, d_model, num_heads, drop_prob = 0.1, norm=None):
         super().__init__()
-        self.norm_1 = Norm(d_model)
-        self.norm_2 = Norm(d_model)
+        self.norm = norm
         self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
-        self.ff = FeedForward(d_model)
-        self.dropout_1 = nn.Dropout(dropout)
-        self.dropout_2 = nn.Dropout(dropout)
+        self.ff = FeedForward(d_model=d_model)
+        self.dropout = nn.Dropout(drop_prob)
+
+    def normalize(self, x):
+        return self.norm(x) if self.norm is not None else x
 
     def forward(self, x, mask):
-        x2 = self.norm_1(x)
-        x = x + self.dropout_1(self.attn(x2,x2,x2,mask))
-        x2 = self.norm_2(x)
-        x = x + self.dropout_2(self.ff(x2))
+        x = self.normalize(x)
+        x = x + self.dropout(self.attn(x, x, x, mask)) #self attention k,q,v from same source
+        x = self.normalize(x)
+        x = x + self.dropout(self.ff(x)) #apply feed forward
         return x
 
 class TransformerDecoder(nn.Module):
@@ -138,21 +160,20 @@ class TransformerDecoder(nn.Module):
             - Must add another level of masking
             - Includes encoder_outputs as well as the emebeddings in the forward function
     '''
-    def __init__(self, embd_size, num_layers, num_heads):
+    def __init__(self, d_model, num_layers, num_heads, drop_prob = 0.1, norm=None):
         super().__init__()
         self.num_layers = num_layers
-        self.layers = self.get_clones(TransformerDecoderLayer(embd_size=embd_size, num_heads=num_heads), num_layers)
-        self.norm = Norm(embd_size)
+        self.layers = self.get_clones(TransformerDecoderLayer(d_model=d_model, num_heads=num_heads, drop_prob=drop_prob, norm=norm), num_layers)
+        self.norm = norm
 
     #Convenience function to allow us to generate num_layers identical copies of our encoder layer
     def get_clones(self, module, N):
         return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
-    
 
-    def forward(self, x, encoder_outputs, src_mask, trg_mask):
+    def forward(self, x, mask=None): #, encoder_outputs, src_mask, trg_mask):
         for i in range(self.num_layers):
-            x = self.layers[i](x, encoder_outputs, src_mask, trg_mask)
-        return self.norm(x)
+            x = self.layers[i](x, mask)# encoder_outputs, src_mask, trg_mask)
+        return self.norm(x) if self.norm is not None else x
 
 class TransformerDecoderLayer(nn.Module):
     ''' 
@@ -164,25 +185,42 @@ class TransformerDecoderLayer(nn.Module):
 
     The forward function applies each sublayer with a dropout for each layer
     '''
-    def __init__(self, embd_size, num_heads, dropout = 0.1):
+    def __init__(self, d_model, num_heads, drop_prob = 0.1, norm=None):
         super().__init__()
-        self.norm_1 = Norm(embd_size)
-        self.norm_2 = Norm(embd_size)
-        self.attn = MultiHeadAttention(embd_size=embd_size, num_heads=num_heads)
-        self.ff = FeedForward(embd_size)
-        self.dropout_1 = nn.Dropout(dropout)
-        self.dropout_2 = nn.Dropout(dropout)
-        self.dropout_3 = nn.Dropout(dropout)
+        self.norm = norm
+        self.attn = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
+        #TODO figure out if we need second attention layer
+        self.ff = FeedForward(d_model=d_model)
+        self.dropout = nn.Dropout(drop_prob)
 
+    def normalize(self, x):
+        return self.norm(x) if self.norm is not None else x
+
+    #TODO still confused on src and target_mask
     def forward(self, x, encoder_outputs, src_mask, trg_mask):
-        x2 = self.norm_1(x)
-        x = x + self.dropout_1(self.attn_1(x2, x2, x2, trg_mask))
-        x2 = self.norm_2(x)
-        x = x + self.dropout_2(self.attn_2(x2, encoder_outputs, encoder_outputs,
-        src_mask))
-        x2 = self.norm_3(x)
-        x = x + self.dropout_3(self.ff(x2))
+        x = self.normalize(x)
+        x = x + self.dropout(self.attn(x, x, x, trg_mask)) #self attention k,q,v from same source
+
+        x = self.normalize(x) 
+        x = x + self.dropout(self.attn(x, encoder_outputs, encoder_outputs, src_mask)) #attention between embeddings and encoder outputs I think
+
+        x = self.normalize(x)
+        x = x + self.dropout(self.ff(x)) #apply feed forward
         return x
+
+    '''
+    def forward(self, x, encoder_outputs, src_mask, trg_mask):
+        x = self.normalize(x)
+        x = x + self.dropout(self.attn(x, trg_mask))
+
+        #TODO: this would be attention between encoder outputs, need to update multihead attention to support k, q, v that aren't all from same source
+        x = self.normalize(x)
+        x = x + self.dropout(self.attn(x, encoder_outputs, encoder_outputs, src_mask)) 
+
+        x = self.normalize(x)
+        x = self.dropout(self.ff(x))
+        return x
+    '''
 
 # Positional encodings from Attention is All You Need paper - Applied in each sub-layer of the encoder
 class PositionalEncoding(nn.Module):
