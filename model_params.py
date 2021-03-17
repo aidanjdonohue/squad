@@ -38,6 +38,7 @@ class BiDAFModelParameters():
         }
 
         self.modeling_layer = {
+            'drop_prob': self.drop_prob,
             'rnn': 'lstm',
             'layers': 2,
             'hidden_size': self.d, # maybe 2*self.hidden_size
