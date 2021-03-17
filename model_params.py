@@ -131,8 +131,7 @@ class TransformerModelParameters():
         }
 
         self.output_layer = {
-            "input_dim" : 4 * hidden_size,
-            "proj_size" : 1
+            "input_dim" : 4 * hidden_size
         }
 
         if embedding_layer is not None:
