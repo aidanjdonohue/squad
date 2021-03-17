@@ -19,6 +19,8 @@ class BiDAFModelParameters():
         self.d = int(hidden_size * d_size)
 
         self.embedding_layer = {
+            'drop_prob': self.drop_prob,
+            'embedding_size': 100,
             'hwy_layers': 2,
             'char_embedder': 'cnn',
             'kernel_size': (1,5),
@@ -32,7 +34,7 @@ class BiDAFModelParameters():
 
 
         self.attention_layer = {
-
+            'drop_prob': self.drop_prob / 2
         }
 
         self.modeling_layer = {

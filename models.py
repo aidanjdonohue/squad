@@ -317,47 +317,53 @@ class BiDAF(nn.Module):
         embd_params = self.params.embedding_layer
         self.embd = embedding.Embedding(word_vectors=word_vectors,
                                         char_vectors=char_vectors,
-                                        hidden_size=hidden_size,
-                                        drop_prob=self.drop_prob,
-                                        params=embd_params)
-
+                                        params=embd_params) # embedding_size and
+                                                            # drop_prob in params
+        self.embd_out_size = 2 * embd_params['embedding_size']
 
         # 2. Encoding layer
         enc_params = self.params.encoder_layer
 
         if enc_params['rnn'] == 'lstm':
-            rnn = encoder.LSTMEncoder
+            enc = encoder.LSTMEncoder
         elif enc_params['rnn'] == 'GRU':
-            rnn = encoder.GRUEncoder
+            enc = encoder.GRUEncoder
         
 
-        self.enc = rnn(input_size=self.d,
+        self.enc = enc(input_size=self.embd_out_size,
                        hidden_size=enc_params['hidden_size'], # self.d
                        num_layers=enc_params['layers'], # 1
                        drop_prob=self.drop_prob) # 
+        
+        self.enc_out_size = 2 * enc_params['hidden_size']
 
 
         # 3. Attention layer
         # maybe params?
-        self.att = bidaf.BiDAFAttention(hidden_size=2*self.d,
-                                        drop_prob=self.drop_prob / 2)
+        att_params = self.params.attention_layer
+        self.att = bidaf.BiDAFAttention(hidden_size=self.enc_out_size,
+                                        drop_prob=att_params['drop_prob'])
 
+        self.att_out_size = 4 * self.enc_out_size
         # 4. Modeling layer
         mod_params = self.params.modeling_layer
 
         if mod_params['rnn'] == 'lstm':
-            rnn = encoder.LSTMEncoder
+            mod = encoder.LSTMEncoder
         elif mod_params['rnn'] == 'GRU':
-            rnn = encoder.GRUEncoder
+            mod = encoder.GRUEncoder
 
 
-        self.mod = rnn(input_size=8*self.d,
+        self.mod = mod(input_size=self.att_out_size,
                        hidden_size=mod_params['hidden_size'], # hidden_size
                        num_layers=mod_params['layers'], # 2
-                       drop_prob=self.drop_prob)
+                       drop_prob=mod_params['drop_prob'])
+
+        self.mod_out_size = 2 * mod_params['hidden_size']
 
         # 5. Output layer
-        self.out = bidaf.BiDAFOutput(hidden_size=self.d,
+        out_params = self.params.output_layer
+        self.out = bidaf.BiDAFOutput(hidden_size=self.embd_out_size,
                                      drop_prob=self.drop_prob)
 
 

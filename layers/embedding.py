@@ -16,29 +16,45 @@ class Embedding(nn.Module):
     Args:
         word_vectors (torch.Tensor): Pre-trained word vectors.
         char_vectors (torch.Tensor): Char vectors
-        hidden_size (int): Size of hidden activations.
+        embedding (int): Size of hidden activations.
         drop_prob (float): Probability of zero-ing out activations
         char_embedder (str): specify a default char embedder (cnn, dense)
-
+    
     """
 
-    def __init__(self, word_vectors, char_vectors, hidden_size, drop_prob, params):
+    def __init__(self, word_vectors, char_vectors, params):
         super(Embedding, self).__init__()
 
-        self.drop_prob = drop_prob
+        self.drop_prob = params['drop_prob']
+
+        self.embedding_size = params['embedding_size']
+        self.hidden_size = params['embedding_size'] * 2
         
-        self.word_embd = WordEmbedding(word_vectors, hidden_size, self.drop_prob)
+        self.word_embd = WordEmbedding(word_vectors=word_vectors, 
+                                       embedding_size=self.embedding_size, 
+                                       drop_prob=self.drop_prob)
 
 
-        self.hwy = HighwayEncoder(params['hwy_layers'], 2*hidden_size)
+        self.hwy = HighwayEncoder(params['hwy_layers'], 
+                                  self.hidden_size)
 
         if params['char_embedder'] == 'cnn':
-            self.char_embd = CNNCharEmbedding(char_vectors, hidden_size, drop_prob, params)
+            self.char_embd = CNNCharEmbedding(char_vectors=char_vectors, 
+                                              embedding_size=self.embedding_size, 
+                                              drop_prob=self.drop_prob, 
+                                              kernel_size=params['kernel_size'])
         else:
             raise Exception(f"char_embedder: {params['char_embedder']} not implemented")
 
 
     def forward(self, c, w):
+        """
+        Args:
+            c (torch.Tensor): char_idxs (batch_size, seq_len, word_len)
+            w (torch.Tensor): word_idxs (batch_size, seq_len, word_len)
+        Output:
+            out (torch.Tensor): batch_size, seq_len, hidden_size
+        """
         # 1. char embed
         char_embd = self.char_embd(c)
 
@@ -47,7 +63,7 @@ class Embedding(nn.Module):
 
         # 3. concat and pass to highway
         comb_embd = torch.cat((char_embd, word_embd), 2)
-        out = self.hwy(comb_embd) # (batch_size, seq, 2*hidden_size)
+        out = self.hwy(comb_embd) # (batch_size, seq, hidden_size)
 
         return out
 
@@ -58,7 +74,7 @@ class Embedding(nn.Module):
 
 class CNNCharEmbedding(nn.Module):
 
-    def __init__(self, char_vectors, hidden_size, drop_prob, params):
+    def __init__(self, char_vectors, embedding_size, drop_prob, kernel_size):
         super(CNNCharEmbedding, self).__init__()
 
         #print(f'char_vectors: {str(char_vectors.size())[10:]}')
@@ -66,10 +82,10 @@ class CNNCharEmbedding(nn.Module):
         embed_size = char_vectors.size(1)
         self.embd = nn.Embedding(vocab_size, embed_size)
 
-        self.hidden_size = hidden_size
+        self.embedding_size = embedding_size
         self.drop_prob = drop_prob
         
-        self.cnn = nn.Conv2d(1, self.hidden_size, params['kernel_size'])
+        self.cnn = nn.Conv2d(1, self.embedding_size, kernel_size)
 
 
     def forward(self, x):
@@ -104,7 +120,7 @@ class CNNCharEmbedding(nn.Module):
 
         assert out.shape[0] == batch_size
         assert out.shape[1] == seq_len
-        assert out.shape[2] == self.hidden_size
+        assert out.shape[2] == self.embedding_size
 
         out = F.dropout(out, self.drop_prob, self.training)
 
@@ -118,10 +134,10 @@ class WordEmbedding(nn.Module):
     In : (N, sentence_len)
     Out: (N, sentence_len, embd_size)
     '''
-    def __init__(self, word_vectors, hidden_size, drop_prob):
+    def __init__(self, word_vectors, embedding_size, drop_prob):
         super(WordEmbedding, self).__init__()
         self.embedding = nn.Embedding.from_pretrained(word_vectors)
-        self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
+        self.proj = nn.Linear(word_vectors.size(1), embedding_size, bias=False)
         self.drop_prob = drop_prob
         '''
         self.embedding = nn.Embedding(args.vocab_size_w, args.w_embd_size)
