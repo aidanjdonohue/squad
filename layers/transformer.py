@@ -3,18 +3,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
-from math import sqrt, sin, cos, log
+import math
 from util import masked_softmax
 
-BLOCK_SIZE = 5000
+BLOCK_SIZE = 500
 
 
 class TransformerOut(nn.Module):
 
-    def __init__(self, input_size, output_size, drop_prob=0.1):
-
-        self.proj1 = Linear(input_size, output_size)
-        self.proj2 = Linear(input_size, output_size)
+    def __init__(self, input_size, drop_prob=0.1):
+        super().__init__()
+        self.proj1 = nn.Linear(input_size, 1)
+        self.proj2 = nn.Linear(input_size, 1)
+        self.proj3 = nn.Linear(input_size, 1)
 
     def forward(self, mod, mask):
 
@@ -24,20 +25,22 @@ class TransformerOut(nn.Module):
         # m1, m2
 
         #start_in = torch.cat((m1, m2), 2)
-        start_in = m1 + m2
+        m1_proj = self.proj1(m1)
+        m2_proj = self.proj1(m2)
+        m3_proj = self.proj1(m3)
 
 
-        start = self.proj1(start_in)
-        log_p1 = masked_softmax(start, mask, log_softmax=True)
+        start = m1_proj + m2_proj
+        log_p1 = masked_softmax(start.squeeze(), mask, log_softmax=True)
 
         #end_in = torch.cat((m1,m3), 2)
-        end_in = m1 + m3
-        end = self.proj2(end_in)
+        end = m1_proj + m3_proj
+        
 
-        log_p2 = masked_softmax(start, mask, log_softmax=True)
+        log_p2 = masked_softmax(end.squeeze(), mask, log_softmax=True)
         # end predictor
         # m1, m3
-        return log_p1
+        return log_p1, log_p2
 
 
 class SelfAttention(nn.Module):
@@ -94,11 +97,11 @@ class TransformerDecoder(nn.Module):
         super().__init__()
 
 
-        self.block1 = TransformerBlock(input_dim=input_dim, params)
+        self.block1 = TransformerBlock(input_dim=input_dim, params=params)
 
-        self.block2 = TransformerBlock(input_dim=input_dim, params)
+        self.block2 = TransformerBlock(input_dim=input_dim, params=params)
 
-        self.block2 = TransformerBlock(input_dim=input_dim, params)
+        self.block3 = TransformerBlock(input_dim=input_dim, params=params)
 
     def forward(self, x):
 
@@ -116,16 +119,16 @@ class TransformerBlock(nn.Module):
         self.drop_prob = params['drop_prob']
 
         num_conv_blocks = params['num_conv_blocks']
-        self.conv_blocks = nn.ModuleList(ConvBlock(input_dim, kernel_size) for _ in range(num_conv_blocks))
+        self.conv_blocks = nn.ModuleList(ConvBlock(input_dim, params['kernel_size']) for _ in range(num_conv_blocks))
 
-        self.att = SelfAttention(input_dim=input_dim, 
-                                 output_dim=input_dim, 
+        self.att = SelfAttention(input_size=input_dim, 
+                                 output_size=input_dim, 
                                  num_heads=params['num_heads'],
                                  drop_prob=params['drop_prob'])
         # todo what shape
         self.att_norm = nn.LayerNorm(input_dim)
 
-        self.ff = FeedForward(input_dim=input_dim, hidden_dim=params['hidden_dim'])
+        self.ff = FeedForward(input_dim=input_dim, hidden_dim=params['hidden_dim'], drop_prob=params['drop_prob'])
         # todo what shape
         self.ff_norm = nn.LayerNorm(input_dim)
 
@@ -166,8 +169,8 @@ class PositionalEncoder(nn.Module):
         self.embedding_size = embedding_size
         self.drop_prob = drop_prob
 
-        self.pe = self.createEncodingMatrix(embedding_size, max_len)
-
+        self.createEncodingMatrix(embedding_size, max_len)
+        
 
     def forward(self, x):
         # create mask
@@ -176,7 +179,7 @@ class PositionalEncoder(nn.Module):
         
         # broadcasting 
         # (batch_size, seq_len, embed_size) * (seq_len, embed_size) -> (batch_size, seq_len, embed_size)            
-        pe_masked = x_mask * self.pe[:x.size(1),:] # 
+        pe_masked = x_mask.float() * self.pe[:x.size(1),:] # 
 
         # scale embeddings so positional embeddings 
         # don't affect their meaning
@@ -202,12 +205,12 @@ class PositionalEncoder(nn.Module):
 
         position = torch.arange(0, max_len).unsqueeze(1)
         div_term = torch.exp((torch.arange(0, embedding_size, 2, dtype=torch.float) *
-                             -(log(10000.0) / embedding_size)))
+                             -(math.log(10000.0) / embedding_size)))
 
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
 
-        return pe
+        self.pe = nn.Parameter(pe, requires_grad=False)
 
 
 
@@ -233,7 +236,9 @@ class ConvBlock(nn.Module):
        
         out = self.depthwise(x)
         out = self.pointwise(out)
+        out = out.permute(0,2,1)
         out = self.norm(out)
+        out = out.permute(0,2,1)
 
         return out
 
@@ -242,7 +247,7 @@ class ConvBlock(nn.Module):
 class FeedForward(nn.Module):
 
     def __init__(self, input_dim, hidden_dim, drop_prob):
-
+        super().__init__()
 
         self.linear1 = nn.Linear(input_dim, hidden_dim)
 

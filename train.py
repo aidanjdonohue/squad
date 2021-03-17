@@ -180,7 +180,7 @@ def main(args):
                 optimizer.zero_grad()
 
                 
-                if model_type == 'BiDAF' or model_type == 'BiDAFplus' or model_type == "Transformer":
+                if model_type == 'BiDAF' or model_type == "Transformer":
                     cc_idxs = cc_idxs.to(device)
                     qc_idxs = qc_idxs.to(device)
 
@@ -289,7 +289,7 @@ def evaluate(model, data_loader, device, eval_file, max_len, use_squad_v2, model
             batch_size = cw_idxs.size(0)
 
             # Forward
-            if model_type == 'BiDAF' or model_type == 'BiDAFplus':
+            if model_type == 'BiDAF' or model_type == 'Transformer':
                 cc_idxs = cc_idxs.to(device)
                 qc_idxs = qc_idxs.to(device)
 
