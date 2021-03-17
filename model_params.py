@@ -158,8 +158,8 @@ class TransformerModelParameters():
         str(self.encoder_layer)  + '\n' +\
         f'attention_layer\n' + \
         str(self.attention_layer)  + '\n' +\
-        f'decoder_layer\n' + \
-        str(self.decoder_layer)
+        f'modeling_layer\n' + \
+        str(self.modeling_layer)
 
         return string
         
