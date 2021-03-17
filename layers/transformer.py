@@ -3,13 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
-<<<<<<< HEAD
 from math import sqrt, sin, cos, log
 from util import masked_softmax
-=======
-from math import sqrt, sin, cos
-from .util import masked_softmax
->>>>>>> b69427280a6cfd269bfc937d74bcdf86632634f6
 
 BLOCK_SIZE = 5000
 
