@@ -90,7 +90,7 @@ class BiDAFModelParameters():
         return string
 
 class TransformerModelParameters():
-    def __init__(self, name, hidden_size=100, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None):
+    def __init__(self, name, hidden_size=100, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None, output_layer=None):
 
         # defaults
         self.name = name
@@ -130,6 +130,11 @@ class TransformerModelParameters():
             "kernel_size" : 5
         }
 
+        self.output_layer = {
+            "input_dim" : 4 * hidden_size,
+            "proj_size" : 1
+        }
+
         if embedding_layer is not None:
             self.embedding_layer.update(embedding_layer)
 
@@ -141,6 +146,9 @@ class TransformerModelParameters():
 
         if modeling_layer is not None:
             self.modeling_layer.update(modeling_layer)
+
+        if output_layer is not None:
+            self.output_layer.update(output_layer)
 
 
 
@@ -159,7 +167,9 @@ class TransformerModelParameters():
         f'attention_layer\n' + \
         str(self.attention_layer)  + '\n' +\
         f'modeling_layer\n' + \
-        str(self.modeling_layer)
+        str(self.modeling_layer) + \
+        f'output_layer\n' + \
+        str(self.output_layer)
 
         return string
         
