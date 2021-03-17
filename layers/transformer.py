@@ -169,8 +169,8 @@ class PositionalEncoder(nn.Module):
         self.embedding_size = embedding_size
         self.drop_prob = drop_prob
 
-        pe = self.createEncodingMatrix(embedding_size, max_len)
-        self.register_buffer('pe', pe)
+        self.createEncodingMatrix(embedding_size, max_len)
+        
 
     def forward(self, x):
         # create mask
@@ -179,7 +179,7 @@ class PositionalEncoder(nn.Module):
         
         # broadcasting 
         # (batch_size, seq_len, embed_size) * (seq_len, embed_size) -> (batch_size, seq_len, embed_size)            
-        pe_masked = x_mask.float() * nn.Variable(self.pe[:x.size(1),:], requires_grad=False).cuda() # 
+        pe_masked = x_mask.float() * self.pe[:x.size(1),:] # 
 
         # scale embeddings so positional embeddings 
         # don't affect their meaning
@@ -210,7 +210,7 @@ class PositionalEncoder(nn.Module):
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
 
-        return pe
+        self.pe = nn.Parameter(pe, requires_grad=False)
 
 
 
