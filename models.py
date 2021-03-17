@@ -87,18 +87,14 @@ class TransformerModel(nn.Module):
         ctx_enc = self.enc(ctx_emb)
         query_enc = self.enc(query_emb)
 
-        print("Successful encoding")
 
         # 3. Attention layer
         att = self.att(ctx_enc, query_enc, ctx_mask, query_mask)
-
-        print("Successful attention")
 
         # 4. decoder layer
         mod = self.mod(att)
 
         out = self.out(mod, ctx_mask)
-        print("Successful decodings")
         return out
 
 
