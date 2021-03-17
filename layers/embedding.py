@@ -68,28 +68,6 @@ class Embedding(nn.Module):
 
 
         
-class DepthwiseSeperableConv(nn.Module):
-
-    def __init__(self, in_size, kernel_size):
-        super(DepthwiseSeperableConv, self).__init__()
-        self.depthwise = nn.Conv2d(in_channels=in_size, 
-                                   out_channels=in_size, 
-                                   kernel_size=kernel_size,
-                                   padding=1,
-                                   groups=in_size)
-
-        self.pointwise = nn.Conv2d(in_channels=in_size, 
-                                   out_channels=in_size, 
-                                   kernel_size=kernel_size,
-                                   padding=1,
-                                   groups=in_size)
-
-
-    def forward(self, x):
-        # input_shape = 
-        out = self.depthwise(x)
-        out = self.pointwise(x)
-        return out
 
 
 

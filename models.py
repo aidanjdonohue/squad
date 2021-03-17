@@ -44,22 +44,24 @@ class TransformerModel(nn.Module):
         enc_params = self.params.encoder_layer
 
         self.enc = transformer.TransformerBlock(input_dim=embedding_size,
-                                                params=self.enc_params)
+                                                params=enc_params)
 
+        enc_out_size = embedding_size
 
         # 3. Attention layer
-        self.att = bidaf.BiDAFAttention(hidden_size=2*self.hidden_size,
+        self.att = bidaf.BiDAFAttention(hidden_size=enc_out_size,
                                         drop_prob=self.drop_prob)
 
-        att_out_size = 4 * self.hidden_size
+        att_out_size = 4 * embedding_size
         # 3. Decoder layer
         dec_params = self.params.modeling_layer
         self.mod = transformer.TransformerDecoder(input_dim=att_out_size,
                                                   params=dec_params)
 
-        mod_out_size = self.hidden_size
+        mod_out_size = att_out_size
         # output layer
-        self.out = transformer.TransformerOut(input_dim=self.hidden_size)
+        out_params = self.params.output_layer
+        self.out = transformer.TransformerOut(input_size=mod_out_size)
 
     # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
     #def generate_square_subsequent_mask(self, sz):
