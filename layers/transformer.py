@@ -47,7 +47,7 @@ class SelfAttention(nn.Module):
     is all but absent and code ugly so I don't trust it, rolling my own here.
     """
 
-    def __init__(self, input_size, output_size, drop_prob=0.1, max_len=BLOCK_SIZE):
+    def __init__(self, input_size, output_size, num_heads, drop_prob=0.1, max_len=BLOCK_SIZE):
         super(SelfAttention, self).__init__()
         # key, query, value projections for all heads
         self.key = nn.Linear(input_size, output_size)
@@ -61,7 +61,7 @@ class SelfAttention(nn.Module):
         # causal mask to ensure that attention is only applied to the left in the input sequence
         self.register_buffer("mask", torch.tril(torch.ones(max_len, max_len))
                                      .view(1, 1, max_len, max_len))
-        self.n_head = 8
+        self.n_head = num_heads
 
     def forward(self, x, layer_past=None):
         B, T, C = x.size()
@@ -94,19 +94,11 @@ class TransformerDecoder(nn.Module):
         super().__init__()
 
 
-        self.block1 = TransformerBlock(input_dim=input_dim,
-                                       num_heads=params['num_heads'],
-                                       drop_prob=params['drop_prob'],
-                                       num_conv_blocks=params['num_conv_blocks'])
+        self.block1 = TransformerBlock(input_dim=input_dim, params)
 
-        self.block2 = TransformerBlock(input_dim=input_dim,
-                                       num_heads=params['num_heads'],
-                                       drop_prob=params['drop_prob'],
-                                       num_conv_blocks=params['num_conv_blocks'])
-        self.block2 = TransformerBlock(input_dim=input_dim,
-                                       num_heads=params['num_heads'],
-                                       drop_prob=params['drop_prob'],
-                                       num_conv_blocks=params['num_conv_blocks'])
+        self.block2 = TransformerBlock(input_dim=input_dim, params)
+
+        self.block2 = TransformerBlock(input_dim=input_dim, params)
 
     def forward(self, x):
 
@@ -118,22 +110,27 @@ class TransformerDecoder(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, input_dim, num_heads, drop_prob, kernel_size=3, num_conv_blocks=1):
+    def __init__(self, input_dim, params):
         super().__init__()
 
-        self.drop_prob = drop_prob
+        self.drop_prob = params['drop_prob']
 
+        num_conv_blocks = params['num_conv_blocks']
         self.conv_blocks = nn.ModuleList(ConvBlock(input_dim, kernel_size) for _ in range(num_conv_blocks))
 
-        self.att = SelfAttention(input_dim, input_dim, drop_prob)
+        self.att = SelfAttention(input_dim=input_dim, 
+                                 output_dim=input_dim, 
+                                 num_heads=params['num_heads'],
+                                 drop_prob=params['drop_prob'])
         # todo what shape
         self.att_norm = nn.LayerNorm(input_dim)
 
-        self.ff = FeedForward(d_model=input_dim)
+        self.ff = FeedForward(input_dim=input_dim, hidden_dim=params['hidden_dim'])
         # todo what shape
         self.ff_norm = nn.LayerNorm(input_dim)
 
     def forward(self, x):
+        # input batch_size, seq_len, embedding_size
 
         # potentialy reshape to go into the conv blocks
         out = x.permute(0, 2, 1)
@@ -144,11 +141,12 @@ class TransformerBlock(nn.Module):
         # potential reshape back
 
         # self attention
-        out = self.att(out)
+
+        out = self.att(out) # batch_size, seq_len, output_dim
         out = self.att_norm(out)
 
         # feed forward
-        out = self.ff(out)
+        out = self.ff(out) # same in same in same out
         out = self.ff_norm(out)
 
         out = F.dropout(out, self.drop_prob, self.training)
@@ -216,12 +214,13 @@ class PositionalEncoder(nn.Module):
 class ConvBlock(nn.Module):
 
     def __init__(self, input_dim, kernel_size):
-
+        super().__init__()
         self.depthwise = nn.Conv1d(in_channels=input_dim,
                                    out_channels=input_dim,
                                    kernel_size=kernel_size,
                                    padding=kernel_size // 2,
                                    groups=input_dim)
+
         self.pointwise = nn.Conv1d(in_channels=input_dim,
                                    out_channels=input_dim,
                                    kernel_size=1)

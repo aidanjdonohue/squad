@@ -44,10 +44,7 @@ class TransformerModel(nn.Module):
         enc_params = self.params.encoder_layer
 
         self.enc = transformer.TransformerBlock(input_dim=embedding_size,
-                                            #num_layers=enc_params["num_layers"],
-                                            num_heads=enc_params["num_heads"],
-                                            drop_prob=self.drop_prob,
-                                            num_conv_blocks=1)
+                                                params=self.enc_params)
 
 
         # 3. Attention layer
@@ -56,9 +53,9 @@ class TransformerModel(nn.Module):
 
         att_out_size = 4 * self.hidden_size
         # 3. Decoder layer
-        dec_params = self.params.decoder_layer
-        self.mod = encoder.TransformerDecoder(input_dim=att_out_size,
-                                              params=dec_params)
+        dec_params = self.params.modeling_layer
+        self.mod = transformer.TransformerDecoder(input_dim=att_out_size,
+                                                  params=dec_params)
 
         mod_out_size = self.hidden_size
         # output layer
