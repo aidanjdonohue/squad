@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import copy
 
 from math import sqrt, sin, cos
-from util import masked_softmax
+from .util import masked_softmax
 
 BLOCK_SIZE = 5000
 
@@ -13,22 +13,31 @@ class TransformerOut(nn.Module):
 
     def __init__(self, input_size, output_size, drop_prob=0.1):
 
-        self.start_dense = Linear(input_size, output_size)
-        self.end_dense = Linear(input_size, output_size)
+        self.proj1 = Linear(input_size, output_size)
+        self.proj2 = Linear(input_size, output_size)
 
-    def forward(self, mod):
+    def forward(self, mod, mask):
 
         m1, m2, m3 = mod
 
         # start predictor
         # m1, m2
 
+        #start_in = torch.cat((m1, m2), 2)
+        start_in = m1 + m2
 
 
+        start = self.proj1(start_in)
+        log_p1 = masked_softmax(start, mask, log_softmax=True)
 
+        #end_in = torch.cat((m1,m3), 2)
+        end_in = m1 + m3
+        end = self.proj2(end_in)
+
+        log_p2 = masked_softmax(start, mask, log_softmax=True)
         # end predictor
         # m1, m3
-
+        return log_p1
 
 
 class SelfAttention(nn.Module):
