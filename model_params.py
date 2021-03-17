@@ -90,7 +90,7 @@ class BiDAFModelParameters():
         return string
 
 class TransformerModelParameters():
-    def __init__(self, name, hidden_size=100, d_size=2, num_layers=6, num_heads=8, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, decoder_layer=None):
+    def __init__(self, name, hidden_size=100, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, decoder_layer=None):
 
         # defaults
         self.name = name
@@ -107,20 +107,23 @@ class TransformerModelParameters():
         }
 
         self.encoder_layer = {
-            "num_layers" : num_layers,
-            "num_heads" : num_heads,
-            "norm" : True
+            "num_heads" : 8,
+            'drop_prob' : self.drop_prob,
+            "num_conv_heads": 8,
+            "hidden_dim" : 256,
+            "kernel_size" : 3
         }
 
         # No impact rn
         self.attention_layer = {
-            "type" : "scaled_dot_product"
         }
 
         self.decoder_layer = {
-            "num_layers" : num_layers,
-            "num_heads" : num_heads,
-            "norm" : True
+            "num_heads" : 8,
+            'drop_prob' : self.drop_prob,
+            "num_conv_heads": 8,
+            "hidden_dim" : 256,
+            "kernel_size" : 3
         }
 
         self.filters = [] #For char embeddings idk what this actually does
