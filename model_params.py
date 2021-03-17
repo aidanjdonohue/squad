@@ -88,6 +88,72 @@ class BiDAFModelParameters():
         str(self.output_layer)
 
         return string
+
+class TransformerModelParameters():
+    def __init__(self, name, hidden_size=100, d_size=2, num_layers=6, num_heads=8, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, decoder_layer=None):
+
+        # defaults
+        self.name = name
+
+        self.d = int(hidden_size * d_size)
+
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.drop_prob = drop_prob
+        
+        self.embedding_layer = {
+            'hidden_size': hidden_size,
+            'hwy_layers': 2,
+            'char_embedder': 'cnn',
+            'kernel_size': (1,5),
+        }
+
+        self.encoder_layer = {
+        }
+
+        self.attention_layer = {
+
+        }
+
+        # doesn't affect model yet
+        self.decoder_layer = {
+        }
+
+        self.filters = [] #For char embeddings idk what this actually does
+
+        if embedding_layer is not None:
+            self.embedding_layer.update(embedding_layer)
+
+        if encoder_layer is not None:
+            self.encoder_layer.update(encoder_layer)
+
+        if attention_layer is not None:
+            self.attention_layer.update(attention_layer)
+
+        if decoder_layer is not None:
+            self.decoder_layer.update(decoder_layer)
+
+
+
+    def __str__(self):
+
+
+        string = \
+        f"Param name  : {self.name}\n" +\
+        f"dimensions : {self.d}\n" +\
+        f"num_layers : {self.num_layers}\n" +\
+        f"num_layers : {self.num_heads}\n" +\
+        f"drop_prob   : {self.drop_prob}\n" +\
+        f'embedding_layer\n' + \
+        str(self.embedding_layer)  + '\n' +\
+        f'encoder_layer\n' + \
+        str(self.encoder_layer)  + '\n' +\
+        f'attention_layer\n' + \
+        str(self.attention_layer)  + '\n' +\
+        f'decoder_layer\n' + \
+        str(self.decoder_layer)
+
+        return string
         
 master = {
     'BiDAF' : {
@@ -110,6 +176,9 @@ master = {
                     encoder_layer={'rnn': 'gru'},
                     modeling_layer={'rnn': 'gru'}
                 )
+    },
+    'Transformer' : {
+        'default' : TransformerModelParameters('default')
     }
 }
 '''

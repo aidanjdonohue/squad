@@ -20,116 +20,53 @@ from datetime import datetime
 
 
 class TransformerModel(nn.Module):
-    def __init__(self, word_vectors, char_vectors, embd_size, hidden_size, num_heads=8, num_layers = 6, drop_prob=0.1):
+    def __init__(self, word_vectors, char_vectors, params):
         super(TransformerModel, self).__init__()
 
         self.model_type = "Transformer"
-        self.word_embd = embedding.WordEmbedding(word_vectors=word_vectors,
-                                                hidden_size=hidden_size,
-                                                drop_prob=drop_prob)
-        self.char_embd = embedding.CharEmbedding(char_vectors=char_vectors)
+        self.params = params
+        self.d_model = params.d
+        self.drop_prob = params.drop_prob
 
-        self.pos_embd = embedding.PositionEmbedding(word_vectors=word_vectors,
-                                                hidden_size=hidden_size, 
-                                                drop_prob=drop_prob)
-        self.hwy = encoder.HighwayEncoder(2, 2*hidden_size)
+        # 1. Embedding layer
+        embd_params = self.params.embedding_layer
+        self.embd = embedding.Embedding(word_vectors=word_vectors,
+                                        char_vectors=char_vectors,
+                                        hidden_size=embd_params["hidden_size"],
+                                        drop_prob=self.drop_prob,
+                                        params=embd_params)
 
-        #self.enc = encoder.SelfAttEncoder(input_size=2*hidden_size,
-        #                             hidden_size=hidden_size,
-        #                             num_layers=1,
-        #                             drop_prob=drop_prob)
-
-        #self.att = bidaf.BiDAFAttention(hidden_size=2*hidden_size,
-        #                                 drop_prob=drop_prob)
-
-        #self.mod = encoder.LSTMEncoder(input_size=8 * hidden_size,
-        #                             hidden_size=hidden_size,
-        #                             num_layers=2,
-        #                             drop_prob=drop_prob)
-
-        #self.out = bidaf.BiDAFOutput(hidden_size=hidden_size,
-        #                              drop_prob=drop_prob)
-
-    def build_contextual_encoding(self, x_w, x_c, w_len, c_len):
-
-        self.pos_embd = embedding.PositionEmbedding(embd_size=embd_size,
-                                                    drop_prob=drop_prob)
-        
-        self.encoder = transformer.TransformerEncoder(embd_size=embd_size,
-                                                      num_layers=num_layers,
-                                                      num_heads=num_heads)
-        self.decoder = transformer.TransformerDecoder(embd_size=embd_size,
-                                                      num_layers=num_layers,
-                                                      num_heads=num_heads)
-        #self.out = nn.Linear(embd_size, trg_vocab)
-        #encoder_layers = nn.TransformerEncoderLayer(input_size, num_heads, hidden_size, drop_prob)
-        #self.enc = TransformerEncoder(encoder_layers, num_layers)
-
-    def getEmbeddings(self, x_w, x_c):
-        char_embd = self.char_embd(x_c)
-        word_embd = self.word_embd(x_w)
-        pos_embd = self.pos_embd(x_c)
-
-        embd = torch.cat((char_embd, word_embd), 2)
-        return embd
-
-    '''def build_contextual_encoding(self, x_w, x_c, mask):#w_len, c_len):
-        char_embd = self.char_embd(x_c)
-        word_embd = self.word_embd(x_w)
-        pos_embd = self.pos_embd(x_c)
-
-        embd = torch.cat((char_embd, word_embd), 2)
-        # TODO concatenate pos_embd as well
-        # TODO embd = self.hwy(embd) - Not sure if we need highway network for transformer
-
-        encoding = self.encoder(embd, mask)
-        return encoding
-    #https://pytorch.org/tutorials/beginner/transformer_tutorial.html
-    def generate_square_subsequent_mask(self, sz):
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-        return mask
-
-    #https://pytorch.org/tutorials/beginner/transformer_tutorial.html
-    def init_weights(self):
-        initrange = 0.1
-        self.encoder.weight.data.uniform_(-initrange, initrange)
-        self.decoder.bias.data.zero_()
-        self.decoder.weight.data.uniform_(-initrange, initrange)'''
+        self.pos_enc = transformer.PositionalEncoding(d_model=self.d_model, 
+                                                drop_prob=self.drop_prob)
 
 
+        # 2. Encoding layer
+        self.enc = transformer.TransformerEncoder(d_model=self.d_model,
+                                                  num_layers=self.params.num_layers,
+                                                  num_heads=self.params.num_heads,
+                                                  drop_prob=self.drop_prob)
 
+    # https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+    #def generate_square_subsequent_mask(self, sz):
+    #    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+    #    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    #    return mask
 
-    def forward(self, cw_idxs, qw_idxs, cc_idxs, qc_idxs):
-        cw_mask = torch.zeros_like(cw_idxs) != cw_idxs
-        qw_mask = torch.zeros_like(qw_idxs) != qw_idxs
+    def forward(self, ctx_char_idxs, query_char_idxs, ctx_word_idxs, query_word_idxs):
+        # masks
+        ctx_mask = torch.zeros_like(ctx_word_idxs) != ctx_word_idxs
+        query_mask = torch.zeros_like(query_word_idxs) != query_word_idxs
+        ctx_len, query_len = ctx_mask.sum(-1), query_mask.sum(-1)
 
-        cw_len, qw_len = cw_mask.sum(-1), qw_mask.sum(-1)
+        # 1. Embedding layer
+        # context and query embeddings
+        ctx_emb = self.embd(ctx_char_idxs, ctx_word_idxs)
+        query_emb = self.embd(query_char_idxs, query_word_idxs)
+        ctx_emb = self.pos_enc(ctx_emb)
+        query_emb = self.pos_enc(query_emb)
 
-        cc_mask = torch.zeros_like(ctx_char_idxs) != ctx_char_idxs
-        qc_mask = torch.zeros_like(query_char_idxs) != query_char_idxs
-        cc_len, qc_len = cc_mask.sum(-1), qc_mask.sum(-1)
-     
-
-        c_enc = self.build_contextual_encoding(ctx_w_idx, ctx_char_idxs, cw_len, cc_len)
-        q_enc = self.build_contextual_encoding(query_w_idxs, query_char_idxs, qw_len, qc_len)
-
-        c_emb = self.getEmbeddings(cw_idxs, cc_idxs) #, cw_mask)
-        q_emb =  self.getEmbeddings(qw_idxs, qc_idxs) #, qw_mask)
-
-
-        #c_enc = self.build_contextual_encoding(cw_idxs, cc_idxs, cw_mask)#cw_len, cc_len)
-        #q_enc = self.build_contextual_encoding(qw_idxs, qc_idxs, qw_mask)#qw_len, qc_len)
-
-        c_enc = self.encoder(c_emb, cw_mask)
-        q_enc = self.encoder(q_emb, qw_mask)
-
-        #TODO go from context and query encoding to output
-        c_dec = self.decoder(x=c_emb, encoder_outputs=c_enc, src_mask=cw_mask, trg_mask=cw_mask)
-        q_dec = self.decoder(x=q_emb, encoder_outputs=q_enc, src_mask=qw_mask, trg_mask=qw_mask)
-
-        #out = self.out(att, mod, cw_mask)                 # 2 tensors, each (batch_size, c_len)
-        out = []
+        out = [] # OUT = transformer encoder ouptut
+        # OUT = transformer decoder output)
         return out
 
 class BiDAFplus(nn.Module):
