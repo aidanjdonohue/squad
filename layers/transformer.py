@@ -102,8 +102,8 @@ class TransformerDecoder(nn.Module):
     def forward(self, x):
 
         m1 = self.block1(x)
-        m2 = self.block2(M1)
-        m3 = self.block3(M2)
+        m2 = self.block2(m1)
+        m3 = self.block3(m2)
 
         return m1, m2, m3
 
@@ -231,6 +231,24 @@ class ConvBlock(nn.Module):
 
 
 
+class FeedForward(nn.Module):
 
+    def __init__(self, input_dim, hidden_dim, drop_prob):
+
+
+        self.linear1 = nn.Linear(input_dim, hidden_dim)
+
+        self.dropout = nn.Dropout(drop_prob)
+
+        self.linear2 = nn.Linear(hidden_dim, input_dim)
+
+
+    def forward(self, x):
+
+        out = F.relu(self.linear1(x))
+        out = self.dropout(out)
+        out = F.relu(self.linear2(out))
+
+        return out
 
 
