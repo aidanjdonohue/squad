@@ -169,8 +169,8 @@ class PositionalEncoder(nn.Module):
         self.embedding_size = embedding_size
         self.drop_prob = drop_prob
 
-        self.pe = self.createEncodingMatrix(embedding_size, max_len)
-
+        pe = self.createEncodingMatrix(embedding_size, max_len)
+        self.register_buffer('pe', pe)
 
     def forward(self, x):
         # create mask
