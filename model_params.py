@@ -99,6 +99,8 @@ class TransformerModelParameters():
         self.drop_prob = drop_prob
         
         self.embedding_layer = {
+            'drop_prob': self.drop_prob,
+            'embedding_size': 100,
             'hwy_layers': 2,
             'char_embedder': 'cnn',
             'kernel_size': (1,5),
