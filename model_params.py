@@ -90,7 +90,7 @@ class BiDAFModelParameters():
         return string
 
 class TransformerModelParameters():
-    def __init__(self, name, hidden_size=100, d_size=2, num_layers=6, num_heads=8, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, decoder_layer=None):
+    def __init__(self, name, hidden_size=100, d_size=2, drop_prob=0.2, embedding_layer=None, encoder_layer=None, attention_layer=None, modeling_layer=None):
 
         # defaults
         self.name = name
@@ -107,23 +107,28 @@ class TransformerModelParameters():
         }
 
         self.encoder_layer = {
-            "num_layers" : num_layers,
-            "num_heads" : num_heads,
-            "norm" : True
+            "num_heads" : 8,
+            'drop_prob' : self.drop_prob,
+            "num_conv_blocks": 1,
+            "input_dim" : self.d,
+            "output_dim" : self.d,
+            "hidden_dim" : 256,
+            "kernel_size" : 5
         }
 
         # No impact rn
         self.attention_layer = {
-            "type" : "scaled_dot_product"
         }
 
-        self.decoder_layer = {
-            "num_layers" : num_layers,
-            "num_heads" : num_heads,
-            "norm" : True
+        self.modeling_layer = {
+            "num_heads" : 8,
+            'drop_prob' : self.drop_prob,
+            "num_conv_blocks": 7,
+            "input_dim" : 4 * hidden_size,
+            "output_dim" : 4 * hidden_size,
+            "hidden_dim" : 256,
+            "kernel_size" : 5
         }
-
-        self.filters = [] #For char embeddings idk what this actually does
 
         if embedding_layer is not None:
             self.embedding_layer.update(embedding_layer)
@@ -135,7 +140,7 @@ class TransformerModelParameters():
             self.attention_layer.update(attention_layer)
 
         if decoder_layer is not None:
-            self.decoder_layer.update(decoder_layer)
+            self.modeling_layer.update(modeling_layer)
 
 
 
