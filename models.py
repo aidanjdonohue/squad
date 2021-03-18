@@ -36,29 +36,37 @@ class TransformerModel(nn.Module):
                                         #drop_prob=self.drop_prob,
                                         params=embd_params)
 
+        # project down
         embedding_size = 2 * self.hidden_size
-        self.pos_enc = transformer.PositionalEncoder(embedding_size=embedding_size, 
-                                                  drop_prob=self.drop_prob)
+        self.embd_proj = nn.Linear(embedding_size, embd_params['proj_size'])
+        
+        self.pos_enc = transformer.PositionalEncoder(embedding_size=embd_params['proj_size'], 
+                                                     drop_prob=self.drop_prob)
 
         # 2. Encoding layer
         enc_params = self.params.encoder_layer
 
-        self.enc = transformer.TransformerBlock(input_dim=embedding_size,
+        self.enc = transformer.TransformerBlock(input_dim=embd_params['proj_size'],
                                                 params=enc_params)
 
-        enc_out_size = embedding_size
+        #
+        enc_out_size = embd_params['proj_size']
 
         # 3. Attention layer
+        att_params = self.params.attention_layer
         self.att = bidaf.BiDAFAttention(hidden_size=enc_out_size,
                                         drop_prob=self.drop_prob)
 
-        att_out_size = 4 * embedding_size
+
+        att_out_size = 4 * embd_params['proj_size']
+        self.att_proj = nn.Linear(att_out_size, att_params['proj_size']) # should also be 128
+
         # 3. Decoder layer
         dec_params = self.params.modeling_layer
-        self.mod = transformer.TransformerDecoder(input_dim=att_out_size,
+        self.mod = transformer.TransformerDecoder(input_dim=att_params['proj_size'],
                                                   params=dec_params)
 
-        mod_out_size = att_out_size
+        mod_out_size = att_params['proj_size']
         # output layer
         out_params = self.params.output_layer
         self.out = transformer.TransformerOut(input_size=mod_out_size)
@@ -80,6 +88,9 @@ class TransformerModel(nn.Module):
         ctx_emb = self.embd(ctx_char_idxs, ctx_word_idxs)
         query_emb = self.embd(query_char_idxs, query_word_idxs)
         
+        ctx_emb = self.embd_proj(ctx_emb)
+        query_emb = self.embd_proj(ctx_emb)
+
         ctx_emb = self.pos_enc(ctx_emb)
         query_emb = self.pos_enc(query_emb)
 
@@ -90,6 +101,7 @@ class TransformerModel(nn.Module):
 
         # 3. Attention layer
         att = self.att(ctx_enc, query_enc, ctx_mask, query_mask)
+        att = self.att_proj(att)
 
         # 4. decoder layer
         mod = self.mod(att)
