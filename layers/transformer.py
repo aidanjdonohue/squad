@@ -260,7 +260,7 @@ class FeedForward(nn.Module):
 
         out = F.relu(self.linear1(x))
         out = self.dropout(out)
-        out = F.relu(self.linear2(out))
+        out = self.linear2(out)
 
         return out
 
