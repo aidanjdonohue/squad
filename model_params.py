@@ -105,6 +105,7 @@ class TransformerModelParameters():
             'hwy_layers': 2,
             'char_embedder': 'cnn',
             'kernel_size': (1,5),
+            'proj_size': 128
         }
 
         self.encoder_layer = {
@@ -117,8 +118,8 @@ class TransformerModelParameters():
             "kernel_size" : 5
         }
 
-        # No impact rn
         self.attention_layer = {
+            'proj_size': 128
         }
 
         self.modeling_layer = {

@@ -32,8 +32,6 @@ class TransformerModel(nn.Module):
         embd_params = self.params.embedding_layer
         self.embd = embedding.Embedding(word_vectors=word_vectors,
                                         char_vectors=char_vectors,
-                                        #hidden_size=self.hidden_size,
-                                        #drop_prob=self.drop_prob,
                                         params=embd_params)
 
         # project down
@@ -89,7 +87,7 @@ class TransformerModel(nn.Module):
         query_emb = self.embd(query_char_idxs, query_word_idxs)
         
         ctx_emb = self.embd_proj(ctx_emb)
-        query_emb = self.embd_proj(ctx_emb)
+        query_emb = self.embd_proj(query_emb)
 
         ctx_emb = self.pos_enc(ctx_emb)
         query_emb = self.pos_enc(query_emb)
