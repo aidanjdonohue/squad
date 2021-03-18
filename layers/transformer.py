@@ -179,13 +179,13 @@ class PositionalEncoder(nn.Module):
         
         # broadcasting 
         # (batch_size, seq_len, embed_size) * (seq_len, embed_size) -> (batch_size, seq_len, embed_size)            
-        pe_masked = x_mask.float() * self.pe[:x.size(1),:] # 
+        #pe_masked = x_mask.float() * self.pe[:x.size(1),:] # 
 
         # scale embeddings so positional embeddings 
         # don't affect their meaning
         x_scaled = x * self.scale_factor
         # add encoding
-        out = x_scaled + pe_masked
+        out = x_scaled + self.pe[:x.size(1),:]#pe_masked
         # drop_prob
         out = F.dropout(out, self.drop_prob, self.training)
 
