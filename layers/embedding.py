@@ -37,6 +37,7 @@ class Embedding(nn.Module):
         self.hwy = HighwayEncoder(params['hwy_layers'], 
                                   self.hidden_size)
 
+
         if params['char_embedder'] == 'cnn':
             self.char_embd = CNNCharEmbedding(char_vectors=char_vectors, 
                                               embedding_size=self.embedding_size, 
@@ -44,6 +45,7 @@ class Embedding(nn.Module):
                                               kernel_size=params['kernel_size'])
         else:
             raise Exception(f"char_embedder: {params['char_embedder']} not implemented")
+
 
 
     def forward(self, c, w):
