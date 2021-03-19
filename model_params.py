@@ -111,7 +111,7 @@ class TransformerModelParameters():
         self.encoder_layer = {
             "num_heads" : 8,
             'drop_prob' : self.drop_prob,
-            "num_conv_blocks": 1,
+            "num_conv_blocks": 0,
             "input_dim" : self.d,
             "output_dim" : self.d,
             "hidden_dim" : 256,
@@ -125,7 +125,7 @@ class TransformerModelParameters():
         self.modeling_layer = {
             "num_heads" : 8,
             'drop_prob' : self.drop_prob,
-            "num_conv_blocks": 7,
+            "num_conv_blocks": 0,
             "input_dim" : 4 * hidden_size,
             "output_dim" : 4 * hidden_size,
             "hidden_dim" : 256,

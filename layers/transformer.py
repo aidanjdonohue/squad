@@ -118,8 +118,8 @@ class TransformerBlock(nn.Module):
 
         self.drop_prob = params['drop_prob']
 
-        num_conv_blocks = params['num_conv_blocks']
-        self.conv_blocks = nn.ModuleList(ConvBlock(input_dim, params['kernel_size']) for _ in range(num_conv_blocks))
+        self.num_conv_blocks = params['num_conv_blocks']
+        self.conv_blocks = nn.ModuleList(ConvBlock(input_dim, params['kernel_size']) for _ in range(self.num_conv_blocks))
 
         self.att = SelfAttention(input_size=input_dim, 
                                  output_size=input_dim, 
@@ -135,13 +135,15 @@ class TransformerBlock(nn.Module):
     def forward(self, x):
         # input batch_size, seq_len, embedding_size
 
-        # potentialy reshape to go into the conv blocks
-        out = x.permute(0, 2, 1)
-        for conv_block in self.conv_blocks:
-            out = conv_block(out)
+        if self.num_conv_blocks > 0:
+            out = x.permute(0, 2, 1) # reshape to go into the conv blocks
 
-        out = out.permute(0, 2, 1)
-        # potential reshape back
+            for conv_block in self.conv_blocks:
+                out = conv_block(out)
+
+            out = out.permute(0, 2, 1) # reshape back
+        else:
+            out = x
 
         # self attention
 
