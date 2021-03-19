@@ -213,7 +213,7 @@ class defEmbedding(nn.Module):
         drop_prob (float): Probability of zero-ing out activations
     """
     def __init__(self, word_vectors, hidden_size, drop_prob):
-        super(Embedding, self).__init__()
+        super(defEmbedding, self).__init__()
         self.drop_prob = drop_prob
         self.embed = nn.Embedding.from_pretrained(word_vectors)
         self.proj = nn.Linear(word_vectors.size(1), hidden_size, bias=False)
